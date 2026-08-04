@@ -9,7 +9,8 @@
 <div>
 	<section>
 		{{ $pages := where site.RegularPages "Type" "in" site.Params.mainSections }}
-		{{ range (.Paginate $pages 6).Pages }}<div>
+		{{ $homePageSize := .Site.Params.homePageSize | default 9 }}
+		{{ range (.Paginate $pages $homePageSize).Pages }}<div>
 			{{ partial "summary.html" . }}
 		</div>
 		{{ end }}

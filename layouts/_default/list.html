@@ -1,10 +1,11 @@
 {{ define "main" }}
+{{ $postsPageSize := .Site.Params.postsPageSize | default 14 }}
 <article>
 	<section>
 		{{- .Content -}}
 	</section>
 	<section>
-		{{ range (.Paginator 25).Pages.GroupByDate "2006" }}
+		{{ range (.Paginator $postsPageSize).Pages.GroupByDate "2006" }}
 		<hr class="p-0 pt-4 m-0" />
 		<section class="flex flex-col md:flex-row items-start items-baseline">
 			<div class="md:pl-4 pb-2 md:sticky top-0 order-1 pr-6">
@@ -15,7 +16,7 @@
 				<div class="py-2 flex">
 					<span class="font-serif pr-4 flex-shrink-0">{{.Date.Format "01-02"}}</span>
 					<div class="font-serif font-medium">
-						<a href="{{ .Permalink }}">
+						<a href="{{ .RelPermalink }}">
 							{{ .Title }}
 						</a>
 						{{ with .Description }}
