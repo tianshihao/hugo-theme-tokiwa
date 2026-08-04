@@ -1,10 +1,41 @@
 {{ if (.Params.toc) }}
-<details class="toc" open>
-<summary>
-    <hr />
-</summary>
-<div class="inline toc-content">
-    {{.TableOfContents}}
-</div>
+<details class="toc toc-relaxed" open>
+    <summary>
+        <hr />
+    </summary>
+    <div class="inline toc-content font-serif">
+        {{.TableOfContents}}
+    </div>
 </details>
+<style>
+    details.toc.toc-relaxed .toc-content nav li,
+    details.toc.toc-relaxed .toc-content nav li a {
+        line-height: 1.6 !important;
+    }
+
+    details.toc.toc-relaxed>summary {
+        list-style: none;
+    }
+
+    details.toc.toc-relaxed>summary::-webkit-details-marker {
+        display: none;
+    }
+
+    details.toc.toc-relaxed hr {
+        position: relative;
+    }
+
+    details.toc.toc-relaxed hr::after {
+        content: '\00A7';
+        position: absolute;
+        right: 0;
+        top: -0.72rem;
+        transform: none;
+        padding: 0 0.35rem;
+        background: transparent;
+        color: #80d2cd;
+        font-size: 16px;
+        line-height: 1;
+    }
+</style>
 {{ end }}
