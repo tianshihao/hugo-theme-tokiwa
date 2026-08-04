@@ -65,14 +65,14 @@
 			font-family: "FancyTitleFont";
 			font-style: normal;
 			font-display: swap;
-			src: url('{{ ( printf "%s%s" .Site.Params.bannerFont ".woff2") | absURL }}') format('woff2'),
-				url('{{ ( printf "%s%s" .Site.Params.bannerFont ".woff") | absURL }}') format('woff');
+			src: url('{{ ( printf "%s%s" .Site.Params.bannerFont ".woff2") | relURL }}') format('woff2'),
+				url('{{ ( printf "%s%s" .Site.Params.bannerFont ".woff") | relURL }}') format('woff');
 		}
 		/*  For variable font usage sometimes */
 		/*
 		@font-face {
 			font-family: 'Source Han Serif CN Variable';
-			src: url('{{"fonts/SourceHanSerifCN-VF.otf.woff2" | absURL }}') format('woff2');
+			src: url('{{"fonts/SourceHanSerifCN-VF.otf.woff2" | relURL }}') format('woff2');
 			font-weight: 1 999;
 			font-style: normal;
 			font-display: swap;
@@ -84,9 +84,9 @@
 			font-weight: 300;
 			font-display: swap;
 			src: local('Noto Serif CJK SC Light'), local('NotoSerifCJK-Light'),
-				url('{{"fonts/noto-serif-sc-v7-latin_chinese-simplified-300.woff2" | absURL }}') format('woff2'),
+				url('{{"fonts/noto-serif-sc-v7-latin_chinese-simplified-300.woff2" | relURL }}') format('woff2'),
 				/* Chrome 26+, Opera 23+, Firefox 39+ */
-				url('{{"fonts/noto-serif-sc-v7-latin_chinese-simplified-300.woff" | absURL }}') format('woff');
+				url('{{"fonts/noto-serif-sc-v7-latin_chinese-simplified-300.woff" | relURL }}') format('woff');
 			/* Chrome 6+, Firefox 3.6+, IE 9+, Safari 5.1+ */
 		}
 
@@ -97,9 +97,9 @@
 			font-weight: 400;
 			font-display: swap;
 			src: local('Noto Serif CJK SC'), local('NotoSerifCJK-Regular'),
-				url('{{"fonts/noto-serif-sc-v7-latin_chinese-simplified-regular.woff2" | absURL }}') format('woff2'),
+				url('{{"fonts/noto-serif-sc-v7-latin_chinese-simplified-regular.woff2" | relURL }}') format('woff2'),
 				/* Chrome 26+, Opera 23+, Firefox 39+ */
-				url('{{"fonts/noto-serif-sc-v7-latin_chinese-simplified-regular.woff" | absURL }}') format('woff');
+				url('{{"fonts/noto-serif-sc-v7-latin_chinese-simplified-regular.woff" | relURL }}') format('woff');
 			/* Chrome 6+, Firefox 3.6+, IE 9+, Safari 5.1+ */
 		}
 
@@ -110,9 +110,9 @@
 			font-weight: 500;
 			font-display: swap;
 			src: local('Noto Serif CJK SC Medium'), local('NotoSerifCJK-Medium'),
-				url('{{"fonts/noto-serif-sc-v7-latin_chinese-simplified-500.woff2" | absURL }}') format('woff2'),
+				url('{{"fonts/noto-serif-sc-v7-latin_chinese-simplified-500.woff2" | relURL }}') format('woff2'),
 				/* Chrome 26+, Opera 23+, Firefox 39+ */
-				url('{{"fonts/noto-serif-sc-v7-latin_chinese-simplified-500.woff" | absURL }}') format('woff');
+				url('{{"fonts/noto-serif-sc-v7-latin_chinese-simplified-500.woff" | relURL }}') format('woff');
 			/* Chrome 6+, Firefox 3.6+, IE 9+, Safari 5.1+ */
 		}
 	</style>
