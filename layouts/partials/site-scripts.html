@@ -15,6 +15,8 @@
 		}
 
 		var MIN_ITEMS_PER_PAGE = 3;
+		var yearMinContent = null; /* 5.125rem, captured once so our inline styles don't pollute it */
+		var yearPadRight = null;   /* 1rem */
 		var desktopMedia = window.matchMedia('(min-width: 768px)');
 		var main = document.querySelector('[data-home-main]');
 		var homeHeaderTitle = document.querySelector('[data-site-title]');
@@ -143,7 +145,7 @@
 		}
 
 		function fitsMainHeight() {
-			return postsContainer.scrollHeight <= (postsContainer.clientHeight + 1);
+			return postsContainer.scrollHeight <= (postsContainer.clientHeight + 4);
 		}
 
 		function setDisabled(anchor, disabled) {
@@ -247,6 +249,127 @@
 			});
 		}
 
+		/* Couple the description rows to the real title-row geometry so they stay
+		   aligned even if the year/date/title font-size, family or line-height
+		   changes. Measures the actual year/date column widths and the title's
+		   vertical centering, then derives the desc row's bottom padding so that
+		   desc -> next divider always equals divider -> first title. */
+		function syncDescriptionRows() {
+			var sample = null;
+			for (var i = 0; i < items.length; i += 1) {
+				if (!items[i].classList.contains('home-fit-hidden')) {
+					sample = items[i];
+					break;
+				}
+			}
+			if (!sample) {
+				return;
+			}
+
+			var yearEl = sample.querySelector('[data-home-archive-year]');
+			var dateEl = sample.querySelector('[data-home-archive-date]');
+			var titleLink = sample.querySelector('a[data-home-archive-title]');
+			if (!yearEl || !dateEl || !titleLink) {
+				return;
+			}
+
+			/* Uniform year column. It must be as wide as the widest year text at
+			   the current font AND identical across every row, so date/title stay
+			   aligned between group-start rows (year text shown) and continuation
+			   rows (year text cleared) even when the year font is enlarged. The
+			   glyph width is measured via a text range (independent of box sizing)
+			   and the CSS min-width/padding are captured once so our own inline
+			   styles can't pollute the measurement. */
+			var dateWidth = 0;
+			var maxYearGlyph = 0;
+			if (yearMinContent === null && sample) {
+				var yearProbe = sample.querySelector('[data-home-archive-year]');
+				if (yearProbe) {
+					yearMinContent = parseFloat(getComputedStyle(yearProbe).minWidth) || 0;
+					yearPadRight = parseFloat(getComputedStyle(yearProbe).paddingRight) || 0;
+				}
+			}
+			items.forEach(function (item) {
+				if (item.classList.contains('home-fit-hidden')) {
+					return;
+				}
+				var yEl = item.querySelector('[data-home-archive-year]');
+				var dEl = item.querySelector('[data-home-archive-date]');
+				if (yEl) {
+					var range = document.createRange();
+					range.selectNodeContents(yEl);
+					maxYearGlyph = Math.max(maxYearGlyph, range.getBoundingClientRect().width);
+				}
+				if (dEl) {
+					dateWidth = Math.max(dateWidth, dEl.getBoundingClientRect().width);
+				}
+			});
+			/* border-box value: min-width is already border-box (global reset),
+			   so the column is whichever is wider — the design min-width or the
+			   widest year glyph plus its right padding. */
+			var yearWidth = Math.max(yearMinContent, maxYearGlyph + yearPadRight);
+			items.forEach(function (item) {
+				if (item.classList.contains('home-fit-hidden')) {
+					return;
+				}
+				var yEl = item.querySelector('[data-home-archive-year]');
+				if (!yEl) {
+					return;
+				}
+				yEl.style.boxSizing = 'border-box';
+				yEl.style.minWidth = yearWidth + 'px';
+			});
+
+			/* Gap from the divider above the first visible item to that item's
+			   title TEXT (glyph) top. Each desc row's bottom padding is derived
+			   so its own text (glyph) bottom keeps the same gap to the divider
+			   below — stays correct under any font-size / family / line-height. */
+			var dividerEl = sample.querySelector('[data-home-archive-divider]');
+			if (!dividerEl || getComputedStyle(dividerEl).display === 'none') {
+				return; /* divider not rendered yet; a later call will fix it */
+			}
+			var dividerRect = dividerEl.getBoundingClientRect();
+			var titleRange = document.createRange();
+			titleRange.selectNodeContents(titleLink);
+			var gapAbove = titleRange.getBoundingClientRect().top - dividerRect.bottom;
+			var dividerMarginTop = parseFloat(getComputedStyle(dividerEl).marginTop) || 0;
+
+			items.forEach(function (item) {
+				if (item.classList.contains('home-fit-hidden')) {
+					return;
+				}
+				var descRow = null;
+				Array.prototype.forEach.call(item.children, function (child) {
+					if (!descRow && child.querySelector('.text-gray-600')) {
+						descRow = child;
+					}
+				});
+				if (!descRow) {
+					return;
+				}
+				var spans = descRow.querySelectorAll('span');
+				if (spans.length >= 2) {
+					spans[0].style.boxSizing = 'border-box';
+					spans[0].style.minWidth = yearWidth + 'px';
+					spans[0].style.width = yearWidth + 'px';
+					spans[1].style.boxSizing = 'border-box';
+					spans[1].style.minWidth = dateWidth + 'px';
+					spans[1].style.width = dateWidth + 'px';
+				}
+				var descDiv = descRow.querySelector('.text-gray-600');
+				var descRange = document.createRange();
+				descRange.selectNodeContents(descDiv);
+				var descGlyphBottom = descRange.getBoundingClientRect().bottom;
+				var descBoxBottom = descDiv.getBoundingClientRect().bottom;
+				var descInset = descBoxBottom - descGlyphBottom;
+				if (descInset < 0) {
+					descInset = 0;
+				}
+				var pad = gapAbove - dividerMarginTop - descInset;
+				descRow.style.paddingBottom = (pad < 0 ? 0 : pad) + 'px';
+			});
+		}
+
 		function setVisibleRange(start, end) {
 			for (var idx = 0; idx < items.length; idx += 1) {
 				var inRange = idx >= start && idx < end;
@@ -262,6 +385,7 @@
 				updatePagerUi();
 				pinBottomRails();
 				applyPostsHeightLimit();
+				syncDescriptionRows();
 				return;
 			}
 
@@ -276,6 +400,7 @@
 			updateYearLabels();
 			buildNumberButtons();
 			updatePagerUi();
+			syncDescriptionRows();
 
 			if (desktopMedia.matches) {
 				window.requestAnimationFrame(function () {
@@ -300,6 +425,7 @@
 				resetVisibility();
 				updateYearLabels();
 				updatePagerUi();
+				syncDescriptionRows();
 				return;
 			}
 
@@ -396,6 +522,9 @@
 			desktopMedia.addEventListener('change', scheduleRebuild);
 		} else if (desktopMedia.addListener) {
 			desktopMedia.addListener(scheduleRebuild);
+		}
+		if (document.fonts && document.fonts.ready) {
+			document.fonts.ready.then(scheduleRebuild);
 		}
 		scheduleRebuild();
 	})();
