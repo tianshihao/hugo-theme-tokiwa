@@ -8,6 +8,86 @@
 {{ end }}
 
 <script>
+	// Pin the aside to the same bottom-left position on every desktop page
+	// (homepage and post pages alike), independent of page scroll.
+	(function () {
+		var body = document.body;
+		if (!body) {
+			return;
+		}
+
+		var isHome = body.classList.contains('home-one-screen');
+		var desktopMedia = window.matchMedia('(min-width: 768px)');
+		var title = document.querySelector('[data-site-title]');
+		var aside = document.querySelector('aside[role="contentinfo"]');
+		var footer = document.querySelector('footer');
+		if (!title || !aside || !footer) {
+			return;
+		}
+
+		function targetBottomGap() {
+			var topGap = Math.max(0, title.getBoundingClientRect().top);
+			return Math.floor(topGap / 2);
+		}
+
+		function clearInline(el) {
+			el.style.position = '';
+			el.style.left = '';
+			el.style.width = '';
+			el.style.bottom = '';
+			el.style.marginBottom = '';
+			el.style.transform = '';
+			el.style.zIndex = '';
+		}
+
+		function pinAside() {
+			clearInline(aside);
+			if (!desktopMedia.matches) {
+				return;
+			}
+			var rect = aside.getBoundingClientRect();
+			aside.style.position = 'fixed';
+			aside.style.left = String(Math.round(rect.left)) + 'px';
+			aside.style.width = String(Math.round(rect.width)) + 'px';
+			aside.style.bottom = String(targetBottomGap()) + 'px';
+			aside.style.zIndex = '20';
+		}
+
+		function pinFooter() {
+			clearInline(footer);
+			if (!desktopMedia.matches || !isHome) {
+				return;
+			}
+			var rect = footer.getBoundingClientRect();
+			footer.style.position = 'fixed';
+			footer.style.left = String(Math.round(rect.left)) + 'px';
+			footer.style.width = String(Math.round(rect.width)) + 'px';
+			footer.style.bottom = String(targetBottomGap()) + 'px';
+			footer.style.zIndex = '20';
+		}
+
+		function run() {
+			window.requestAnimationFrame(function () {
+				window.requestAnimationFrame(function () {
+					pinAside();
+					pinFooter();
+				});
+			});
+		}
+
+		document.addEventListener('DOMContentLoaded', run);
+		window.addEventListener('load', run);
+		window.addEventListener('resize', run);
+		if (desktopMedia.addEventListener) {
+			desktopMedia.addEventListener('change', run);
+		} else if (desktopMedia.addListener) {
+			desktopMedia.addListener(run);
+		}
+		run();
+	})();
+</script>
+
+<script>
 	(function () {
 		var body = document.body;
 		if (!body || !body.classList.contains('home-one-screen')) {
@@ -17,7 +97,7 @@
 		var MIN_ITEMS_PER_PAGE = 3;
 		var desktopMedia = window.matchMedia('(min-width: 768px)');
 		var main = document.querySelector('[data-home-main]');
-		var homeHeaderTitle = document.querySelector('header h1');
+		var homeHeaderTitle = document.querySelector('[data-site-title]');
 		var homeAside = document.querySelector('[data-home-aside]');
 		var homeFooter = document.querySelector('[data-home-footer]');
 		var postsContainer = document.querySelector('[data-home-posts-container]');
@@ -75,26 +155,51 @@
 			});
 		}
 
-		function applyBottomGapByTitle() {
+		function getTargetBottomGap() {
+			var titleTopGap = Math.max(0, homeHeaderTitle.getBoundingClientRect().top);
+			return Math.floor(titleTopGap / 2);
+		}
+
+		function clearFixedRails() {
+			homeAside.style.position = '';
+			homeAside.style.left = '';
+			homeAside.style.width = '';
+			homeAside.style.bottom = '';
+			homeAside.style.marginBottom = '';
+			homeAside.style.transform = '';
+			homeAside.style.zIndex = '';
+
+			homeFooter.style.position = '';
+			homeFooter.style.left = '';
+			homeFooter.style.width = '';
+			homeFooter.style.bottom = '';
+			homeFooter.style.marginBottom = '';
+			homeFooter.style.transform = '';
+			homeFooter.style.zIndex = '';
+		}
+
+		function pinBottomRails() {
 			if (!desktopMedia.matches) {
-				homeAside.style.marginBottom = '';
-				homeFooter.style.marginBottom = '';
-				homeAside.style.transform = '';
-				homeFooter.style.transform = '';
+				clearFixedRails();
 				return;
 			}
 
-			var titleTopGap = Math.max(0, homeHeaderTitle.getBoundingClientRect().top);
-			var bottomGap = Math.round(titleTopGap / 2);
-			homeAside.style.marginBottom = '';
-			homeFooter.style.marginBottom = '';
-			homeAside.style.transform = '';
-			homeFooter.style.transform = '';
+			clearFixedRails();
+			var bottomGap = getTargetBottomGap();
+			var asideRect = homeAside.getBoundingClientRect();
+			var footerRect = homeFooter.getBoundingClientRect();
 
-			var currentBottomGap = Math.max(0, Math.round(window.innerHeight - homeFooter.getBoundingClientRect().bottom));
-			var delta = currentBottomGap - bottomGap;
-			homeAside.style.transform = 'translateY(' + String(delta) + 'px)';
-			homeFooter.style.transform = 'translateY(' + String(delta) + 'px)';
+			homeAside.style.position = 'fixed';
+			homeAside.style.left = String(Math.round(asideRect.left)) + 'px';
+			homeAside.style.width = String(Math.round(asideRect.width)) + 'px';
+			homeAside.style.bottom = String(bottomGap) + 'px';
+			homeAside.style.zIndex = '20';
+
+			homeFooter.style.position = 'fixed';
+			homeFooter.style.left = String(Math.round(footerRect.left)) + 'px';
+			homeFooter.style.width = String(Math.round(footerRect.width)) + 'px';
+			homeFooter.style.bottom = String(bottomGap) + 'px';
+			homeFooter.style.zIndex = '20';
 		}
 
 		function applyPostsHeightLimit() {
@@ -105,8 +210,8 @@
 			}
 
 			var postsTop = postsContainer.getBoundingClientRect().top;
-			var footerHeight = Math.ceil(footer.getBoundingClientRect().height);
-			var footerBottomGap = Math.max(0, Math.floor(window.innerHeight - footer.getBoundingClientRect().bottom));
+			var footerHeight = Math.ceil(homeFooter.getBoundingClientRect().height);
+			var footerBottomGap = getTargetBottomGap();
 			var available = Math.floor(window.innerHeight - postsTop - footerHeight - footerBottomGap - 12);
 			if (available < 0) {
 				available = 0;
@@ -209,6 +314,8 @@
 			if (!pages.length) {
 				resetVisibility();
 				updatePagerUi();
+				pinBottomRails();
+				applyPostsHeightLimit();
 				return;
 			}
 
@@ -223,12 +330,10 @@
 			buildNumberButtons();
 			updatePagerUi();
 
-			// Keep aside and pagination pinned to the same bottom baseline
-			// even when current page has fewer visible list items.
 			if (desktopMedia.matches) {
 				window.requestAnimationFrame(function () {
 					window.requestAnimationFrame(function () {
-						applyBottomGapByTitle();
+						pinBottomRails();
 						applyPostsHeightLimit();
 					});
 				});
@@ -241,7 +346,7 @@
 			pageButtons = [];
 			pagesHost.innerHTML = '';
 			if (!desktopMedia.matches) {
-				applyBottomGapByTitle();
+				pinBottomRails();
 				postsContainer.style.maxHeight = '';
 				postsContainer.style.overflow = '';
 				showPager(false);
@@ -251,7 +356,7 @@
 			}
 
 			showPager(true);
-			applyBottomGapByTitle();
+			pinBottomRails();
 			applyPostsHeightLimit();
 			var start = 0;
 			while (start < items.length) {
@@ -285,7 +390,7 @@
 				currentPage = pages.length - 1;
 			}
 			renderPage(currentPage);
-			applyBottomGapByTitle();
+			pinBottomRails();
 			applyPostsHeightLimit();
 		}
 
