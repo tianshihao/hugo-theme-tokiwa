@@ -1,5 +1,6 @@
+{{ $pages := where site.RegularPages "Draft" false }}
 {{$scratch := newScratch}}
-{{ range (site.RegularPages)}}
+{{ range $pages }}
 {{$scratch.Add "total" .WordCount}}
 {{ end }}
 <div class="md:max-w-xs  flex flex-col md:items-end pt-2">
@@ -10,6 +11,6 @@
 		Built with Hugo and theme <a 
 			href="https://github.com/heyeshuang/hugo-theme-tokiwa">Tokiwa</a>.
 			<br />
-			{{ len site.RegularPages }} pages, {{$scratch.Get "total" }} words in total.
+			{{ len $pages }} pages, {{$scratch.Get "total" }} words in total.
 	</div>
 </div>
