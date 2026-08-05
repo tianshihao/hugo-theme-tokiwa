@@ -1,6 +1,6 @@
 <div>
 	<h2>
-		<a href="{{ .Site.BaseURL }}" title="{{ .Site.Title }}" class="heading font-cursive icon">{{ .Site.Title }}</a>
+		<a href="{{ if hugo.IsServer }}/{{ else }}{{ .Site.BaseURL }}{{ end }}" title="{{ .Site.Title }}" class="heading font-cursive icon" data-site-title>{{ .Site.Title }}</a>
 	</h2>
 </div>
 <h1 class="pt-2">
@@ -18,3 +18,4 @@
 </div>
 {{ partial "toc.html" . }}
 <hr />
+{{ partial "site-navigation.html" . }}

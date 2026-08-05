@@ -142,14 +142,6 @@
 				align-self: end;
 			}
 
-			body.home-one-screen [data-home-aside] {
-				position: static !important;
-			}
-
-			body.home-one-screen [data-home-aside] > div {
-				margin-bottom: 0 !important;
-			}
-
 			body.home-one-screen [data-home-pager] {
 				display: grid;
 				grid-template-columns: 2rem 2rem minmax(0, 1fr) 2rem 2rem;
@@ -172,6 +164,21 @@
 				align-items: center;
 				justify-content: center;
 				gap: 0.25rem;
+				white-space: nowrap;
+			}
+
+			body.home-one-screen [data-home-post-title] a {
+				display: inline-block;
+				max-width: 100%;
+				overflow: hidden;
+				text-overflow: ellipsis;
+				white-space: nowrap;
+				vertical-align: bottom;
+			}
+
+			body.home-one-screen [data-home-post-desc] {
+				overflow: hidden;
+				text-overflow: ellipsis;
 				white-space: nowrap;
 			}
 
@@ -203,7 +210,7 @@
 		<div data-home-row-break class="w-full h-0 flex-none order-3"></div>
 		<aside role="contentinfo"
 			data-home-aside class="w-full md:w-2/5 xl:w-1/2 md:pr-12 lg:pr-20 xl:pr-24 order-4 md:order-3 md:sticky md:bottom-0 self-end max-w-2xl">
-			<div class="md:float-right md:text-right leading-loose tracking-tight md:mb-2">
+			<div class="md:float-right md:text-right leading-loose tracking-tight">
 				{{ block "aside" . }}{{ partial "site-aside.html" . }}{{ end }}
 			</div>
 		</aside>

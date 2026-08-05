@@ -1,5 +1,5 @@
 <div class="pb-8">
-	<div class="font-serif font-medium text-xl">
+	<div data-home-post-title class="font-serif font-medium text-xl">
 		<a href="{{ .RelPermalink }}">
 			{{ .Title }}
 		</a>
@@ -9,7 +9,7 @@
 	{{/*  {{ if   .Description}}{{ .Description }}{{else}}{{ .Summary }}{{end}}
 </div> */}}
 	{{ with .Description }}
-	<div class="font-serif text-gray-600 font-light pt-1">
+	<div data-home-post-desc class="font-serif text-gray-600 font-light pt-1">
 		{{ .}}</div>
 
 	{{ end }}
