@@ -8,86 +8,6 @@
 {{ end }}
 
 <script>
-	// Pin the aside to the same bottom-left position on every desktop page
-	// (homepage and post pages alike), independent of page scroll.
-	(function () {
-		var body = document.body;
-		if (!body) {
-			return;
-		}
-
-		var isHome = body.classList.contains('home-one-screen');
-		var desktopMedia = window.matchMedia('(min-width: 768px)');
-		var title = document.querySelector('[data-site-title]');
-		var aside = document.querySelector('aside[role="contentinfo"]');
-		var footer = document.querySelector('footer');
-		if (!title || !aside || !footer) {
-			return;
-		}
-
-		function targetBottomGap() {
-			var topGap = Math.max(0, title.getBoundingClientRect().top);
-			return Math.floor(topGap / 2);
-		}
-
-		function clearInline(el) {
-			el.style.position = '';
-			el.style.left = '';
-			el.style.width = '';
-			el.style.bottom = '';
-			el.style.marginBottom = '';
-			el.style.transform = '';
-			el.style.zIndex = '';
-		}
-
-		function pinAside() {
-			clearInline(aside);
-			if (!desktopMedia.matches) {
-				return;
-			}
-			var rect = aside.getBoundingClientRect();
-			aside.style.position = 'fixed';
-			aside.style.left = String(Math.round(rect.left)) + 'px';
-			aside.style.width = String(Math.round(rect.width)) + 'px';
-			aside.style.bottom = String(targetBottomGap()) + 'px';
-			aside.style.zIndex = '20';
-		}
-
-		function pinFooter() {
-			clearInline(footer);
-			if (!desktopMedia.matches || !isHome) {
-				return;
-			}
-			var rect = footer.getBoundingClientRect();
-			footer.style.position = 'fixed';
-			footer.style.left = String(Math.round(rect.left)) + 'px';
-			footer.style.width = String(Math.round(rect.width)) + 'px';
-			footer.style.bottom = String(targetBottomGap()) + 'px';
-			footer.style.zIndex = '20';
-		}
-
-		function run() {
-			window.requestAnimationFrame(function () {
-				window.requestAnimationFrame(function () {
-					pinAside();
-					pinFooter();
-				});
-			});
-		}
-
-		document.addEventListener('DOMContentLoaded', run);
-		window.addEventListener('load', run);
-		window.addEventListener('resize', run);
-		if (desktopMedia.addEventListener) {
-			desktopMedia.addEventListener('change', run);
-		} else if (desktopMedia.addListener) {
-			desktopMedia.addListener(run);
-		}
-		run();
-	})();
-</script>
-
-<script>
 	(function () {
 		var body = document.body;
 		if (!body || !body.classList.contains('home-one-screen')) {
@@ -156,8 +76,9 @@
 		}
 
 		function getTargetBottomGap() {
-			var titleTopGap = Math.max(0, homeHeaderTitle.getBoundingClientRect().top);
-			return Math.floor(titleTopGap / 2);
+			var raw = getComputedStyle(document.documentElement).getPropertyValue('--aside-gap');
+			var v = parseInt(raw, 10);
+			return Number.isNaN(v) ? 34 : v;
 		}
 
 		function clearFixedRails() {
