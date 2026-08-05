@@ -15,8 +15,8 @@
 			</div>
 			{{ with $item.Description }}
 			<div class="flex items-center" style="padding-bottom: 14.5px">
-				<span aria-hidden="true" style="min-width: 5.125rem; padding-right: 1rem; visibility: hidden; flex-shrink: 0;">{{ $item.Date.Year }}</span>
-				<span aria-hidden="true" class="pr-4" style="visibility: hidden; flex-shrink: 0;">{{ $item.Date.Format "01-02" }}</span>
+				<span aria-hidden="true" style="min-width: 5.125rem; padding-right: 1rem; visibility: hidden; flex-shrink: 0; white-space: nowrap;">{{ $item.Date.Year }}</span>
+				<span aria-hidden="true" class="pr-4" style="visibility: hidden; flex-shrink: 0; white-space: nowrap;">{{ $item.Date.Format "01-02" }}</span>
 				<div class="text-gray-600 font-light">{{ . }}</div>
 			</div>
 			{{ end }}

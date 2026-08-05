@@ -45,11 +45,12 @@
 			min-width: 5.125rem; /* year text (≈4.125rem) + 1rem gap */
 			padding-right: 1rem; /* matches the date's pr-4 so year→date == date→title */
 			flex-shrink: 0;
+			white-space: nowrap;
 			vertical-align: baseline;
 			font-family: "Source Han Serif SC", "Source Han Serif CN", "Noto Serif CJK SC", serif;
 			font-weight: 500;
 			font-size: 1.875rem;
-			line-height: 2.25rem;
+			line-height: 1.2; /* unitless → follows font-size (1.2×), so the line box scales with the year font and never overflows */
 		}
 
 		/* same line-height as the year so items-center lines the text up */
@@ -63,6 +64,11 @@
 			height: 0;
 			border-top: 1px solid #9acfbf;
 			margin: 8px 0; /* symmetric so the year/item sits centered between lines */
+		}
+
+		/* the prebuilt CSS has no .items-center, so align archive rows explicitly */
+		[data-home-archive] [data-home-post-item] .flex {
+			align-items: center;
 		}
 
 		[data-home-archive-body] {
