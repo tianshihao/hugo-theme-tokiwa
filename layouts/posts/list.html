@@ -1,0 +1,31 @@
+{{ define "main" }}
+<div>
+	<section data-home-posts-container data-home-archive>
+		{{ $pages := where site.RegularPages "Type" "in" site.Params.mainSections }}
+		{{ range $pages }}
+		<div data-home-post-item data-home-post-year="{{ .Date.Year }}">
+			{{ $item := . }}
+			<div data-home-archive-divider></div>
+			<div class="py-2 flex items-center">
+				<span data-home-archive-year class="text-eucalyptus-600 font-serif flex-shrink-0">{{ $item.Date.Year }}</span>
+				<span data-home-archive-date class="font-serif pr-4 flex-shrink-0">{{ $item.Date.Format "01-02" }}</span>
+				<div data-home-archive-body class="font-serif font-medium">
+					<a href="{{ $item.RelPermalink }}" data-home-archive-title>{{ $item.Title }}</a>
+				</div>
+			</div>
+			{{ with $item.Description }}
+			<div class="flex items-center" style="padding-bottom: 14.5px">
+				<span aria-hidden="true" style="min-width: 5.125rem; padding-right: 1rem; visibility: hidden; flex-shrink: 0;">{{ $item.Date.Year }}</span>
+				<span aria-hidden="true" class="pr-4" style="visibility: hidden; flex-shrink: 0;">{{ $item.Date.Format "01-02" }}</span>
+				<div class="text-gray-600 font-light">{{ . }}</div>
+			</div>
+			{{ end }}
+		</div>
+		{{ end }}
+	</section>
+</div>
+{{ end }}
+
+{{ define "footer" }}
+{{ partial "home-pager.html" . }}
+{{ end }}
