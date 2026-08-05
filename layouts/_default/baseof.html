@@ -117,27 +117,97 @@
 		}
 	</style>
 	{{ end }}
+	{{ if .IsHome }}
+	<style type="text/css">
+		@media (min-width: 768px) {
+			body.home-one-screen {
+				height: 100dvh;
+				overflow: hidden;
+			}
+
+			body.home-one-screen .home-one-screen-shell {
+				height: 100dvh;
+				overflow: hidden;
+				align-content: space-between;
+			}
+
+			body.home-one-screen [data-home-main] {
+				min-height: 0;
+				max-height: 100%;
+				overflow: hidden;
+			}
+
+			body.home-one-screen [data-home-aside],
+			body.home-one-screen [data-home-footer] {
+				align-self: end;
+			}
+
+			body.home-one-screen [data-home-aside] {
+				position: static !important;
+			}
+
+			body.home-one-screen [data-home-aside] > div {
+				margin-bottom: 0 !important;
+			}
+
+			body.home-one-screen [data-home-pager] {
+				display: grid;
+				grid-template-columns: 2rem 2rem minmax(0, 1fr) 2rem 2rem;
+				align-items: center;
+				column-gap: 0.5rem;
+				font-family: serif;
+			}
+
+			body.home-one-screen [data-home-pager] > li {
+				list-style: none;
+			}
+
+			body.home-one-screen [data-home-pages-wrap] {
+				display: flex;
+				justify-content: center;
+			}
+
+			body.home-one-screen [data-home-pages] {
+				display: inline-flex;
+				align-items: center;
+				justify-content: center;
+				gap: 0.25rem;
+				white-space: nowrap;
+			}
+
+			body.home-one-screen [data-home-row-break] {
+				display: block;
+				width: 100%;
+				height: 0;
+			}
+		}
+
+		.home-fit-hidden {
+			display: none !important;
+		}
+	</style>
+	{{ end }}
 </head>
 
-<body class="bg-gray-100 text-gray-700 font-sans">
-	<div class="p-6 sm:p-10 md:p-16 flex flex-wrap">
+<body class="bg-gray-100 text-gray-700 font-sans{{ if .IsHome }} home-one-screen{{ end }}">
+	<div class="p-6 sm:p-10 md:p-16 flex flex-wrap{{ if .IsHome }} home-one-screen-shell{{ end }}">
 		<header class="w-full md:w-2/5 xl:w-1/2 md:pr-12 lg:pr-20 xl:pr-24 order-1 md:order-1 max-w-2xl">
 			<div
 				class="z-50 bg-gray-100 bg-opacity-75 bg-opacity-custom lg:min-w-0.7 max-w-xl md:float-right md:text-right leading-loose tracking-tight md:sticky md:top-0 pt-2">
 				{{ block "header" . }}{{ partial "site-header.html" .}}{{ end }}
 			</div>
 		</header>
-		<main role="main" class="w-full md:w-3/5 xl:w-1/2 max-w-3xl order-2 md:order-2 min-h-70vh pt-2 pb-4">
+		<main role="main" data-home-main class="w-full md:w-3/5 xl:w-1/2 max-w-3xl order-2 md:order-2 min-h-70vh pt-2 pb-4">
 			{{ block "main" . }}{{ end }}
 		</main>
-		<div class="w-full h-0 flex-none order-3"></div>
+		<div data-home-row-break class="w-full h-0 flex-none order-3"></div>
 		<aside role="contentinfo"
-			class="w-full md:w-2/5 xl:w-1/2 md:pr-12 lg:pr-20 xl:pr-24 order-4 md:order-3 md:sticky md:bottom-0 self-end max-w-2xl">
+			data-home-aside class="w-full md:w-2/5 xl:w-1/2 md:pr-12 lg:pr-20 xl:pr-24 order-4 md:order-3 md:sticky md:bottom-0 self-end max-w-2xl">
 			<div class="md:float-right md:text-right leading-loose tracking-tight md:mb-2">
 				{{ block "aside" . }}{{ partial "site-aside.html" . }}{{ end }}
 			</div>
 		</aside>
-		<footer class="w-full md:w-3/5 xl:w-1/2 order-3 max-w-3xl md:order-4 pt-2">
+		<footer data-home-footer class="w-full md:w-3/5 xl:w-1/2 order-3 max-w-3xl md:order-4 pt-2 self-end">
 			{{ block "footer" . }}
 			{{ end }}
 		</footer>
