@@ -39,6 +39,26 @@
 			aside[data-home-aside] { bottom: var(--aside-gap) !important; }
 		}
 
+		/* One shared type system across the posts archive and the taxonomy pages:
+		   --list-line-height is the natural rhythm of the 1rem list/title text
+		   (16px × 1.625 = 26px), and --label-font-size is derived by JS so the
+		   label's glyph is exactly two list lines tall. Both the posts year label
+		   and the tags drop-cap label use it, so they are the same "label" font. */
+		:root {
+			--list-line-height: 26px; /* 1rem list/title text at 1.625 line-height (16px × 1.625) */
+			--label-font-size: 2.25rem; /* fallback; JS refines it from the measured serif ratio */
+		}
+
+		/* Keep the theme's original animated underline (a background that sweeps
+		   in from the left via background-size 0 → 100% and retracts on leave,
+		   color following the text). Only add box-decoration-break: clone so a
+		   multi-line link draws its underline per line consistently — the last
+		   line's underline no longer drifts below the others. */
+		a:not(.icon) {
+			-webkit-box-decoration-break: clone;
+			box-decoration-break: clone;
+		}
+
 		/* archive (posts page) year column and row layout */
 		[data-home-archive-year] {
 			display: inline-block;
@@ -49,21 +69,92 @@
 			vertical-align: baseline;
 			font-family: "Source Han Serif SC", "Source Han Serif CN", "Noto Serif CJK SC", serif;
 			font-weight: 500;
-			font-size: 1.875rem;
+			font-size: var(--label-font-size);
 			line-height: 1.2; /* unitless → follows font-size (1.2×), so the line box scales with the year font and never overflows */
 		}
 
-		/* same line-height as the year so items-center lines the text up */
+		/* Posts keeps its own list rhythm (36px); only the font size of the list
+		   text is shared with the Tags page, not the line spacing */
 		[data-home-archive-date],
 		a[data-home-archive-title] {
 			line-height: 2.25rem;
 		}
 
-		[data-home-archive-divider] {
-			display: none;
+		/* optical centering: center the title on its own text only. The hover
+		   underline is a background line at the bottom of the link box and the
+		   descender space sits below the baseline — neither is part of the font,
+		   so nudge the title down a touch for the font to read as truly centered */
+		a[data-home-archive-title],
+		.tag-card-titles a {
+			position: relative;
+			top: 2px;
+		}
+
+		/* divider shared by the posts archive and the taxonomy cards; block-level,
+		   so it is always exactly as wide as its container (no overflow) */
+		[data-home-archive-divider],
+		[data-home-tag-divider] {
 			height: 0;
 			border-top: 1px solid #9acfbf;
 			margin: 8px 0; /* symmetric so the year/item sits centered between lines */
+		}
+		[data-home-archive-divider] {
+			display: none; /* the archive JS reveals it for group/page starts */
+		}
+
+		/* taxonomy card: tag label floats to the top-left, post titles wrap in the
+		   space below/around it; the content block has symmetric vertical padding so
+		   it sits centered between the divider above and the next card's divider */
+		.tag-card-content {
+			overflow: hidden; /* contain the floated tag so its height is measured */
+			padding: 8px 0;   /* symmetric: divider → content == content → next divider */
+		}
+
+		/* long tag names truncate with an ellipsis instead of wrapping; the label
+		   font-size is shared with the posts year label (--label-font-size), sized
+		   so the glyph is exactly two lines of titles tall (2 × --list-line-height) */
+		[data-home-tag-name] {
+			font-size: var(--label-font-size);
+			/* exactly two list/title lines tall (2 × --list-line-height): the
+			   third title line starts right after the tag (no bottom inflation
+			   from the underline) and the hover underline lands on the line 2→3
+			   boundary */
+			line-height: calc(2 * var(--list-line-height));
+			/* small gap between the tag and the titles on its right (kept close
+			   to the tag, slightly larger than the 3px to the third line) */
+			padding-right: 14px;
+			max-width: 60%;
+			overflow: hidden;
+			text-overflow: ellipsis;
+			white-space: nowrap;
+		}
+
+		/* the theme's underline uses linear-gradient(currentColor, …), which
+		   Chromium fails to repaint on hover for this oversized glyph inside an
+		   overflow:hidden float — the sweep was invisible. Draw the same 2px
+		   sweep with a CSS custom property instead; the color still follows the
+		   link's teal text color (and its hover tone). */
+		[data-home-tag-name] a {
+			--tag-underline: #028760;
+			background-image: linear-gradient(var(--tag-underline), var(--tag-underline));
+			background-size: 0 2px;
+			background-position: 0 100%;
+			background-repeat: no-repeat;
+			transition: background-size .3s cubic-bezier(0, .5, 0, 1);
+		}
+		[data-home-tag-name] a:hover,
+		[data-home-tag-name] a:focus {
+			background-size: 100% 2px;
+			--tag-underline: #49beb7;
+		}
+
+		/* the .pin cards carry 5px padding from the theme; drop it entirely so the
+		   divider spans the full column width (its left edge aligns with the posts
+		   archive divider), and add overflow:hidden so the divider's top margin never
+		   collapses — every column's first divider sits at content top + 8px */
+		.waterfall .pin {
+			padding: 0;
+			overflow: hidden;
 		}
 
 		/* the prebuilt CSS has no .items-center, so align archive rows explicitly */

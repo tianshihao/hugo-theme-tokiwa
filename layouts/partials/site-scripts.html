@@ -8,6 +8,39 @@
 {{ end }}
 
 <script>
+	/* One shared "label" font across the posts year label and the tags drop-cap
+	   label. The label glyph should be exactly two lines of the shared list/title
+	   text tall (2 × --list-line-height). We measure the label font's glyph
+	   height-to-font-size ratio once, derive the font-size from it, and publish it
+	   as --label-font-size so both pages use the same value. */
+	function measureGlyphRatio() {
+		var label = document.querySelector('[data-home-tag-name]') ||
+		            document.querySelector('[data-home-archive-year]');
+		if (!label) {
+			return 1.42;
+		}
+		var probe = document.createElement('span');
+		probe.textContent = 'M';
+		probe.setAttribute('aria-hidden', 'true');
+		probe.style.cssText =
+			'position:absolute;visibility:hidden;pointer-events:none;white-space:nowrap;' +
+			'font-family:' + getComputedStyle(label).fontFamily + ';' +
+			'font-size:100px;line-height:1;';
+		document.body.appendChild(probe);
+		var range = document.createRange();
+		range.selectNodeContents(probe);
+		var ratio = range.getBoundingClientRect().height / 100;
+		document.body.removeChild(probe);
+		return ratio || 1.42;
+	}
+
+	function syncLabelFontSize() {
+		var listLh = parseFloat(getComputedStyle(document.documentElement)
+			.getPropertyValue('--list-line-height')) || 26;
+		var size = (2 * listLh) / measureGlyphRatio();
+		document.documentElement.style.setProperty('--label-font-size', size.toFixed(1) + 'px');
+	}
+
 	(function () {
 		var body = document.body;
 		if (!body || !body.classList.contains('home-one-screen')) {
@@ -413,6 +446,7 @@
 		}
 
 		function buildPagesByHeight() {
+			syncLabelFontSize();
 			pages = [];
 			resetVisibility();
 			pageButtons = [];
@@ -527,5 +561,137 @@
 			document.fonts.ready.then(scheduleRebuild);
 		}
 		scheduleRebuild();
+	})();
+
+	/* Tags page: keep each card's content vertically centered between its divider
+	   and the next card's divider (uniform text→divider gaps), and center a single
+	   line of titles vertically on the big tag label. */
+	(function () {
+		var waterfall = document.querySelector('.waterfall');
+		if (!waterfall) {
+			return;
+		}
+		var pins = Array.prototype.slice.call(document.querySelectorAll('.waterfall .pin'));
+		if (!pins.length) {
+			return;
+		}
+		var GAP = 13; /* reference gap: tag text → own divider */
+
+		function rangeRect(el) {
+			var r = document.createRange();
+			r.selectNodeContents(el);
+			return r.getBoundingClientRect();
+		}
+
+		function align() {
+			pins.forEach(function (pin, i) {
+				var div = pin.querySelector('[data-home-tag-divider]');
+				var content = pin.querySelector('.tag-card-content');
+				var tag = pin.querySelector('[data-home-tag-name]');
+				var titlesWrap = pin.querySelector('.tag-card-titles');
+				if (!div || !content || !tag || !titlesWrap) {
+					return;
+				}
+
+				/* reset a previous run's adjustments so we measure the natural box */
+				titlesWrap.style.display = '';
+				titlesWrap.style.transform = '';
+				content.style.paddingTop = '';
+				content.style.paddingBottom = '';
+
+				var pinTop = pin.getBoundingClientRect().top;
+				var pinLeft = pin.getBoundingClientRect().left;
+				var cs = getComputedStyle(content);
+				var padT = parseFloat(cs.paddingTop) || 0;
+				var padB = parseFloat(cs.paddingBottom) || 0;
+				var contentH = content.getBoundingClientRect().height - padT - padB;
+
+				var tagR = rangeRect(tag);
+				var links = Array.prototype.slice.call(pin.querySelectorAll('.tag-card-titles > a'));
+				var firstR = links.length ? rangeRect(links[0]) : tagR;
+				var lastR = links.length ? rangeRect(links[links.length - 1]) : tagR;
+				var topText = Math.min(tagR.top, firstR.top);
+				var bottomText = Math.max(tagR.bottom, lastR.bottom);
+
+				/* divider directly below this card, in the same column */
+				var cardBottom = pin.getBoundingClientRect().bottom;
+				var nextDiv = null;
+				for (var j = i + 1; j < pins.length; j++) {
+					var cand = pins[j].querySelector('[data-home-tag-divider]');
+					var candRect = cand ? cand.getBoundingClientRect() : null;
+					if (candRect && candRect.top > cardBottom && Math.abs(candRect.left - pinLeft) < 5) {
+						nextDiv = cand;
+						break;
+					}
+				}
+
+				/* center the content's text extent between its divider and the next
+				   divider: top text → own divider = GAP, bottom text → next = GAP.
+				   Column-end cards have no next divider, so only the top gap is
+				   pinned (keeps every card's tag label the same distance from its
+				   divider, even the last card of a column). */
+				var divMarginTop = parseFloat(getComputedStyle(div).marginTop) || 0;
+				var divMarginBottom = parseFloat(getComputedStyle(div).marginBottom) || 0;
+				var topOffset = topText - (pinTop + divMarginTop + divMarginBottom + padT);
+				var newPadTop = Math.max(0, GAP - divMarginBottom - topOffset);
+				content.style.paddingTop = newPadTop + 'px';
+				if (nextDiv) {
+					var nextMarginTop = parseFloat(getComputedStyle(nextDiv).marginTop) || 0;
+					var bottomTextOffset = bottomText - (pinTop + divMarginTop + divMarginBottom + padT);
+					var newPadBottom = Math.max(0, GAP - contentH - nextMarginTop + bottomTextOffset);
+					content.style.paddingBottom = newPadBottom + 'px';
+				}
+
+				/* single line of titles: center them vertically on the tag label
+				   (a single long title that wraps to two lines is NOT one line).
+				   The +2 matches the CSS optical shift on the title link so the
+				   font reads as centered and the hover underline sits below it. */
+				if (links.length && titlesWrap.getBoundingClientRect().height < 35) {
+					var tr = rangeRect(tag);
+					var fr = rangeRect(links[0]);
+					var tagCenter = (tr.top + tr.bottom) / 2;
+					var titlesCenter = (fr.top + fr.bottom) / 2;
+					var offset = tagCenter - titlesCenter + 2;
+					titlesWrap.style.display = 'inline-block';
+					titlesWrap.style.transform = 'translateY(' + offset.toFixed(1) + 'px)';
+				}
+			});
+		}
+
+		/* Long tags would be cut off by the drop-cap max-width; shrink their
+		   font-size just enough for the full name to fit, so the label is never
+		   truncated with an ellipsis. Short tags keep the full drop-cap size. */
+		function fitLongTags() {
+			pins.forEach(function (pin) {
+				var tag = pin.querySelector('[data-home-tag-name]');
+				if (!tag) {
+					return;
+				}
+				tag.style.fontSize = '';
+				if (tag.scrollWidth <= tag.clientWidth + 0.5) {
+					return;
+				}
+				/* step the size down until the full name fits; only ever round
+				   down so a subpixel overflow cliff can't re-introduce the
+				   ellipsis at the final applied size */
+				var size = parseFloat(getComputedStyle(tag).fontSize) || 36;
+				while (size > 12 && tag.scrollWidth > tag.clientWidth + 0.5) {
+					size -= 0.5;
+					tag.style.fontSize = size.toFixed(1) + 'px';
+				}
+			});
+		}
+
+		function rebuild() {
+			syncLabelFontSize();
+			fitLongTags();
+			align();
+		}
+
+		rebuild();
+		window.addEventListener('resize', rebuild);
+		if (document.fonts && document.fonts.ready) {
+			document.fonts.ready.then(rebuild);
+		}
 	})();
 </script>
