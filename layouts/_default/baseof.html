@@ -110,23 +110,55 @@
 			padding: 8px 0;   /* symmetric: divider → content == content → next divider */
 		}
 
-		/* long tag names truncate with an ellipsis instead of wrapping; the label
-		   font-size is shared with the posts year label (--label-font-size), sized
-		   so the glyph is exactly two lines of titles tall (2 × --list-line-height) */
+		/* long tag names shrink to fit (JS) or, when they still can't fit, are
+		   truncated with a custom "..." ellipsis. The browser's text-overflow
+		   glyph is a full-width CJK ellipsis in the serif font — vertically
+		   centered and drawn in the span's gray, not the link's teal — so we
+		   draw our own real inline "...". The label font-size is shared with the
+		   posts year label (--label-font-size), sized so the glyph is exactly
+		   two lines of titles tall (2 × --list-line-height). */
 		[data-home-tag-name] {
 			font-size: var(--label-font-size);
-			/* exactly two list/title lines tall (2 × --list-line-height): the
-			   third title line starts right after the tag (no bottom inflation
-			   from the underline) and the hover underline lands on the line 2→3
-			   boundary */
+			/* The glyph is exactly two list/title lines tall. The float's box,
+			   however, is one pixel shorter: the title lines sit a fraction of a
+			   pixel lower than the floated tag (font-metric drift), so an
+			   exactly-two-line float would poke into the third title line and
+			   indent it. Shaving 1px keeps the first two title lines beside the
+			   tag and lets the third line run full width. The glyph still renders
+			   at full size (line-height keeps its two-line box; the span does not
+			   clip, so the 0.5px overflow just shows). The hover underline still
+			   lands on the line 2→3 boundary. */
 			line-height: calc(2 * var(--list-line-height));
+			height: calc(2 * var(--list-line-height) - 1px);
+			white-space: nowrap;
+			color: #028760; /* ellipsis + any non-link text use the link's teal */
 			/* small gap between the tag and the titles on its right (kept close
 			   to the tag, slightly larger than the 3px to the third line) */
 			padding-right: 14px;
 			max-width: 60%;
+		}
+
+		/* the text part of the label: clips long names (the span itself no
+		   longer clips so the two-line glyph can overflow its 1px-shorter box).
+		   text-overflow is only a no-JS fallback — JS truncates whole characters
+		   and appends the custom ellipsis instead. */
+		[data-home-tag-name] .tag-label {
+			display: inline-block;
+			max-width: 100%;
 			overflow: hidden;
-			text-overflow: ellipsis;
 			white-space: nowrap;
+			vertical-align: bottom;
+			text-overflow: ellipsis;
+		}
+
+		/* JS appends the English "..." straight into the link text when a long
+		   name is truncated, so the ellipsis is part of the link: it inherits
+		   the teal, sits on the text baseline, and gets the hover sweep
+		   underline — unlike the browser's full-width CJK ellipsis. When
+		   truncated, suppress the browser ellipsis so there is never a double
+		   one; overflow:hidden above still guards the minimum-size edge case. */
+		[data-home-tag-name].is-truncated .tag-label {
+			text-overflow: clip;
 		}
 
 		/* the theme's underline uses linear-gradient(currentColor, …), which
