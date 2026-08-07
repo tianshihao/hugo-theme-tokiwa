@@ -750,4 +750,62 @@
 			document.fonts.ready.then(rebuild);
 		}
 	})();
+
+	/* Vim-style navigation: press g as a leader, then one of h/p/t/c/s to jump
+	   to home / posts / tags / categories / series. Ignored while typing in a
+	   field or when a modifier key is held; the leader expires after a moment. */
+	(function () {
+		var leader = false;
+		var leaderTimer = null;
+		var routes = {
+			h: '/',             /* home */
+			p: '/posts/',       /* posts */
+			t: '/tags/',        /* tags */
+			c: '/categories/',  /* categories */
+			s: '/series/'       /* series */
+		};
+
+		function resetLeader() {
+			leader = false;
+			clearTimeout(leaderTimer);
+			leaderTimer = null;
+		}
+
+		document.addEventListener('keydown', function (e) {
+			var t = e.target;
+			var tag = t && t.tagName ? t.tagName.toLowerCase() : '';
+			if (tag === 'input' || tag === 'textarea' || tag === 'select' ||
+				(t && t.isContentEditable)) {
+				return; /* typing — never hijack */
+			}
+			if (e.ctrlKey || e.metaKey || e.altKey) {
+				resetLeader();
+				return;
+			}
+			var key = e.key.toLowerCase();
+
+			if (key === 'g' && !e.repeat) {
+				leader = true;
+				clearTimeout(leaderTimer);
+				leaderTimer = setTimeout(resetLeader, 1200);
+				e.preventDefault(); /* dead key until the second press */
+				return;
+			}
+
+			if (leader) {
+				resetLeader();
+				var target = routes[key];
+				if (!target) {
+					return;
+				}
+				e.preventDefault();
+				/* skip reload if we're already on that page */
+				var current = window.location.pathname.replace(/\/+$/, '');
+				var next = target.replace(/\/+$/, '');
+				if (current !== next) {
+					window.location.href = target;
+				}
+			}
+		});
+	})();
 </script>
