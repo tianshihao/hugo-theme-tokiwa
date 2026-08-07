@@ -661,24 +661,80 @@
 		/* Long tags would be cut off by the drop-cap max-width; shrink their
 		   font-size just enough for the full name to fit, so the label is never
 		   truncated with an ellipsis. Short tags keep the full drop-cap size. */
+		/* Long tag labels are never shrunk (always full drop-cap size). When a
+		   name can't fit, truncate it by whole characters and append the custom
+		   ellipsis: measure the real glyph width of text + "..." with a hidden
+		   probe, then drop characters from the end one at a time until it fits.
+		   Never go below a minimum so at least ~2 CJK chars / 4 letters stay
+		   visible (2 × the label font size). */
 		function fitLongTags() {
 			pins.forEach(function (pin) {
 				var tag = pin.querySelector('[data-home-tag-name]');
-				if (!tag) {
+				var label = tag ? tag.querySelector('.tag-label') : null;
+				var a = label ? label.querySelector('a') : null;
+				if (!tag || !label || !a) {
 					return;
 				}
-				tag.style.fontSize = '';
-				if (tag.scrollWidth <= tag.clientWidth + 0.5) {
-					return;
+
+				/* remember the full name so we can re-truncate on every resize;
+				   the template's surrounding whitespace is dropped */
+				var full = a.getAttribute('data-full-text');
+				if (full === null) {
+					full = a.textContent.trim();
+					a.setAttribute('data-full-text', full);
 				}
-				/* step the size down until the full name fits; only ever round
-				   down so a subpixel overflow cliff can't re-introduce the
-				   ellipsis at the final applied size */
-				var size = parseFloat(getComputedStyle(tag).fontSize) || 36;
-				while (size > 12 && tag.scrollWidth > tag.clientWidth + 0.5) {
-					size -= 0.5;
-					tag.style.fontSize = size.toFixed(1) + 'px';
+				a.textContent = full;
+				tag.classList.remove('is-truncated');
+
+				/* available width for text + ellipsis = the tag's maximum content
+				   width (max-width: 60% of the card), not its current
+				   shrink-to-fit width which is smaller for short tags */
+				var maxWidth = getComputedStyle(tag).maxWidth;
+				var avail;
+				if (maxWidth && maxWidth.indexOf('%') !== -1) {
+					var card = tag.parentElement;
+					avail = card.clientWidth * (parseFloat(maxWidth) / 100);
+				} else {
+					avail = parseFloat(maxWidth) || tag.clientWidth;
 				}
+				avail -= parseFloat(getComputedStyle(tag).paddingRight) || 0;
+
+				/* measure real glyph widths at the label font with a probe */
+				var cs = getComputedStyle(a);
+				var probe = document.createElement('span');
+				probe.style.cssText = 'position:absolute;visibility:hidden;pointer-events:none;' +
+					'white-space:nowrap;font-size:' + cs.fontSize + ';font-family:' + cs.fontFamily + ';';
+				document.body.appendChild(probe);
+				function widthOf(str) {
+					probe.textContent = str;
+					return probe.getBoundingClientRect().width;
+				}
+
+				var ellWidth = widthOf('...');
+				if (widthOf(full) + ellWidth <= avail + 0.5) {
+					document.body.removeChild(probe);
+					return; /* fits at full size */
+				}
+
+				/* floor: never show less than ~2 CJK chars / 4 letters of text */
+				var minTextWidth = 2 * parseFloat(cs.fontSize);
+				var text = full;
+				while (text.length > 0) {
+					var textWidth = widthOf(text);
+					if (textWidth + ellWidth <= avail + 0.5) {
+						break; /* fits with the ellipsis */
+					}
+					if (textWidth <= minTextWidth) {
+						break; /* at the minimum; CSS clips any sliver */
+					}
+					text = text.slice(0, -1); /* whole character off the end */
+				}
+				document.body.removeChild(probe);
+
+				/* the ellipsis is appended to the link text itself, so it is part
+				   of the link and gets the hover sweep underline too */
+				a.textContent = text + '...';
+				tag.classList.add('is-truncated');
 			});
 		}
 
