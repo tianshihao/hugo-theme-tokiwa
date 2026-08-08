@@ -397,6 +397,39 @@
 		.home-fit-hidden {
 			display: none !important;
 		}
+
+		/* vim j/k list navigation cursor. Drawn as an overlay (::before,
+		   z-index:-1 so it sits behind the text). When vim navigation is active
+		   (body.vim-nav) the rows get a small horizontal inset so the selection
+		   card has visible breathing room on both sides — the one-screen main
+		   column clips at its edges (overflow:hidden), so the highlight cannot
+		   poke past the content; instead the content steps in and the highlight
+		   spans the full column. Non-vim view keeps the original flush layout. */
+		body.vim-nav [data-home-post-item] {
+			padding-left: 14px;
+			padding-right: 14px;
+			transition: padding 0.25s ease;
+		}
+		body.vim-nav [data-home-post-item] [data-home-archive-divider] {
+			margin-left: -14px;
+			margin-right: -14px;
+		}
+		[data-home-post-item].vim-active {
+			position: relative;
+			z-index: 0;
+		}
+		[data-home-post-item].vim-active::before {
+			content: '';
+			position: absolute;
+			z-index: -1;
+			top: var(--hl-top, 2px);
+			bottom: var(--hl-bottom, 4px);
+			left: 0;
+			right: 0;
+			background: rgba(2, 135, 96, 0.07);
+			border-radius: 8px;
+			pointer-events: none;
+		}
 	</style>
 	{{ end }}
 </head>

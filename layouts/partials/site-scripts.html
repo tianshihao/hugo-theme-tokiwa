@@ -756,9 +756,15 @@
 		}
 	})();
 
-	/* Vim-style navigation: press g as a leader, then one of h/p/t/c/s to jump
-	   to home / posts / tags / categories / series. Ignored while typing in a
-	   field or when a modifier key is held; the leader expires after a moment. */
+	/* Vim-style navigation:
+	   - g as a leader, then h/p/t/c/s to jump to home / posts / tags /
+	     categories / series; gg jumps to the first list row
+	   - j / k move a highlight through the post list (home + posts), like
+	     Twitter / Zhihu feed navigation; G (shift+g) jumps to the last row,
+	     Enter opens the highlighted post, Esc / Ctrl+C exit
+	   The first j/k/gg/G always starts at the top row.
+	   Ignored while typing in a field or when a modifier key is held; the
+	   leader expires after a moment. */
 	(function () {
 		var leader = false;
 		var leaderTimer = null;
@@ -770,10 +776,162 @@
 			s: '/series/'       /* series */
 		};
 
+		/* j/k list navigation state */
+		var activeItem = null;
+
+		/* The home and posts lists render rows with different shapes, so the
+		   content a row's selection card should wrap — and the link Enter opens
+		   — differ per page. That detail is captured once here, as a small
+		   per-page config, instead of being sniffed inside every function. */
+		var isPosts = !!document.querySelector('a[data-home-archive-title]');
+		var listConfig = isPosts ? {
+			/* posts rows: the date + title (+ description); the year column
+			   label and the group divider are markers, not row content */
+			contentSelectors: ['[data-home-archive-date]',
+				'a[data-home-archive-title]', '[data-home-post-desc]'],
+			openSelectors: ['a[data-home-archive-title]']
+		} : {
+			/* home rows: title → description → tags/date (the pb-8 bottom
+			   padding is not content) */
+			contentSelectors: ['[data-home-post-title]',
+				'[data-home-post-desc]', '.flex.flex-wrap.justify-between'],
+			openSelectors: ['[data-home-post-title] a', 'a[href]']
+		};
+
+		/* Wrap the selection card around the row's content (the min/max of the
+		   configured content elements) with a 2px margin, so every row's
+		   highlight is identical regardless of divider / padding. */
+		function measureBounds(item) {
+			var itemR = item.getBoundingClientRect();
+			var minTop = Infinity;
+			var maxBottom = -Infinity;
+			var found = false;
+			listConfig.contentSelectors.forEach(function (sel) {
+				var el = item.querySelector(sel);
+				if (el) {
+					var r = el.getBoundingClientRect();
+					minTop = Math.min(minTop, r.top);
+					maxBottom = Math.max(maxBottom, r.bottom);
+					found = true;
+				}
+			});
+			if (!found) {
+				return { top: 2, bottom: 4 };
+			}
+			return {
+				top: Math.max(1, minTop - itemR.top - 2),
+				bottom: Math.max(1, itemR.bottom - maxBottom - 2)
+			};
+		}
+
+		/* find the link Enter should open, in config order */
+		function findOpenLink(item) {
+			for (var i = 0; i < listConfig.openSelectors.length; i += 1) {
+				var a = item.querySelector(listConfig.openSelectors[i]);
+				if (a && a.href) {
+					return a;
+				}
+			}
+			return null;
+		}
+
 		function resetLeader() {
 			leader = false;
 			clearTimeout(leaderTimer);
 			leaderTimer = null;
+		}
+
+		/* only the currently-rendered items (hidden home-fit-hidden pages and
+		   draft rows are display:none → offsetParent is null, so skip them) */
+		function visibleItems() {
+			return Array.prototype.slice
+				.call(document.querySelectorAll('[data-home-post-item]'))
+				.filter(function (el) { return el.offsetParent !== null; });
+		}
+
+		function clearActive() {
+			if (activeItem) {
+				activeItem.classList.remove('vim-active');
+				activeItem = null;
+			}
+		}
+
+		/* Leave vim list navigation: drop the highlight and the body.vim-nav
+		   class, so the rows animate back to the original flush layout. */
+		function exitVim() {
+			clearActive();
+			document.body.classList.remove('vim-nav');
+		}
+
+		/* Enter list navigation: switch the rows to the inset "selection mode". */
+		function enterVim() {
+			document.body.classList.add('vim-nav');
+		}
+
+		function setActive(item) {
+			clearActive();
+			activeItem = item;
+			item.classList.add('vim-active');
+
+			/* Publish the content bounds as CSS custom properties that the
+			   ::before overlay consumes, so every row's highlight is identical. */
+			var b = measureBounds(item);
+			item.style.setProperty('--hl-top', b.top + 'px');
+			item.style.setProperty('--hl-bottom', b.bottom + 'px');
+
+			if (item.scrollIntoView) {
+				item.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+			}
+		}
+
+		function move(step) {
+			var items = visibleItems();
+			if (!items.length) {
+				return;
+			}
+			var idx = activeItem ? items.indexOf(activeItem) : -1;
+			var next;
+			if (idx === -1) {
+				/* no selection yet: always start at the top row, whether the
+				   first key was j or k */
+				next = 0;
+			} else {
+				next = idx + step;
+			}
+			if (next < 0) {
+				next = 0;
+			}
+			if (next > items.length - 1) {
+				next = items.length - 1;
+			}
+			if (activeItem && next === idx) {
+				return; /* already at an edge; don't re-scroll */
+			}
+			setActive(items[next]);
+		}
+
+		function goToFirst() {
+			var items = visibleItems();
+			if (items.length) {
+				setActive(items[0]);
+			}
+		}
+
+		function goToLast() {
+			var items = visibleItems();
+			if (items.length) {
+				setActive(items[items.length - 1]);
+			}
+		}
+
+		function openActive() {
+			if (!activeItem) {
+				return;
+			}
+			var link = findOpenLink(activeItem);
+			if (link) {
+				window.location.href = link.href;
+			}
 		}
 
 		document.addEventListener('keydown', function (e) {
@@ -783,22 +941,32 @@
 				(t && t.isContentEditable)) {
 				return; /* typing — never hijack */
 			}
+			var rawKey = e.key;
+			var key = rawKey.toLowerCase();
+
+			/* Ctrl+C exits vim list navigation (same as Esc); never hijack copy —
+			   the input guard above already returned while typing in a field. */
+			if (e.ctrlKey && key === 'c' && document.body.classList.contains('vim-nav')) {
+				e.preventDefault();
+				exitVim();
+				return;
+			}
+
 			if (e.ctrlKey || e.metaKey || e.altKey) {
 				resetLeader();
 				return;
 			}
-			var key = e.key.toLowerCase();
 
-			if (key === 'g' && !e.repeat) {
-				leader = true;
-				clearTimeout(leaderTimer);
-				leaderTimer = setTimeout(resetLeader, 1200);
-				e.preventDefault(); /* dead key until the second press */
-				return;
-			}
-
+			/* if the leader is armed, this key completes a leader sequence
+			   (checked before the plain-g trigger so gg works) */
 			if (leader) {
 				resetLeader();
+				if (rawKey === 'g') { /* gg: jump to the first list row */
+					e.preventDefault();
+					enterVim();
+					goToFirst();
+					return;
+				}
 				var target = routes[key];
 				if (!target) {
 					return;
@@ -810,6 +978,43 @@
 				if (current !== next) {
 					window.location.href = target;
 				}
+				return;
+			}
+
+			/* lowercase g starts the leader (gg = first row); shift+G = last row */
+			if (rawKey === 'g' && !e.repeat) {
+				leader = true;
+				clearTimeout(leaderTimer);
+				leaderTimer = setTimeout(resetLeader, 1200);
+				e.preventDefault(); /* dead key until the second press */
+				return;
+			}
+
+			/* j/k / G: move the highlight through the post list (any page with
+			   [data-home-post-item] — home + posts). Enter opens it, Esc /
+			   Ctrl+C exit. body.vim-nav lets the CSS inset the rows so the
+			   selection card has breathing room; it is set once navigation
+			   starts. */
+			if (key === 'j' || key === 'k') {
+				e.preventDefault();
+				enterVim();
+				move(key === 'j' ? 1 : -1);
+			} else if (rawKey === 'G') { /* shift+g: jump to the last row */
+				e.preventDefault();
+				enterVim();
+				goToLast();
+			} else if (key === 'enter' && activeItem) {
+				e.preventDefault();
+				openActive();
+			} else if (key === 'escape') {
+				exitVim();
+			}
+		});
+
+		/* keep the highlight bounds in sync when the window is resized */
+		window.addEventListener('resize', function () {
+			if (activeItem) {
+				setActive(activeItem);
 			}
 		});
 	})();
