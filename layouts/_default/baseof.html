@@ -116,11 +116,14 @@
 		}
 
 		/* taxonomy card: tag label floats to the top-left, post titles wrap in the
-		   space below/around it; the content block has symmetric vertical padding so
-		   it sits centered between the divider above and the next card's divider */
+		   space below/around it. The symmetric vertical padding is only the no-JS
+		   baseline (and a fallback); the real "content centered between the divider
+		   above and the next card's divider" rule is enforced by site-scripts'
+		   align(), which measures the actual text extent and re-balances the
+		   padding so the text→divider gap is exactly GAP on both sides. */
 		.tag-card-content {
 			overflow: hidden; /* contain the floated tag so its height is measured */
-			padding: 8px 0;   /* symmetric: divider → content == content → next divider */
+			padding: 8px 0;   /* no-JS baseline; align() overrides it per card */
 		}
 
 		/* long tag names shrink to fit (JS) or, when they still can't fit, are
@@ -397,7 +400,14 @@
 		.home-fit-hidden {
 			display: none !important;
 		}
+	</style>
+	{{ end }}
 
+	{{/* vim navigation CSS — rendered on EVERY page. The vim j/k navigation and
+	     the taxonomy (tags/categories/series) card navigation run site-wide, so
+	     this style cannot live inside the $oneScreen block above (home/posts
+	     only). Rules whose elements don't exist on a given page are no-ops. */}}
+	<style type="text/css">
 		/* vim j/k list navigation cursor. Drawn as an overlay (::before,
 		   z-index:-1 so it sits behind the text). When vim navigation is active
 		   (body.vim-nav) the rows get a small horizontal inset so the selection
@@ -430,8 +440,33 @@
 			border-radius: 8px;
 			pointer-events: none;
 		}
+
+		/* taxonomy card selection (tags / categories / series): same overlay card
+		   style as the list rows, wrapping the card's tag label + preview titles. */
+		.waterfall .pin.vim-active,
+		[data-taxonomy-cards] > section.vim-active {
+			position: relative;
+			z-index: 0;
+		}
+		.waterfall .pin.vim-active::before,
+		[data-taxonomy-cards] > section.vim-active::before {
+			content: '';
+			position: absolute;
+			z-index: -1;
+			top: var(--hl-top, 2px);
+			bottom: var(--hl-bottom, 4px);
+			left: 0;
+			right: 0;
+			background: rgba(2, 135, 96, 0.07);
+			border-radius: 8px;
+			pointer-events: none;
+		}
+		/* the post preview currently focused inside a card (after l) */
+		.tag-card-titles a.vim-active {
+			background-color: rgba(2, 135, 96, 0.14);
+			border-radius: 3px;
+		}
 	</style>
-	{{ end }}
 </head>
 
 <body class="bg-gray-100 text-gray-700 font-sans{{ if $oneScreen }} home-one-screen{{ end }}">
