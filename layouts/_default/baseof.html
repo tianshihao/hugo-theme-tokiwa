@@ -186,8 +186,11 @@
 		/* the .pin cards carry 5px padding from the theme; drop it entirely so the
 		   divider spans the full column width (its left edge aligns with the posts
 		   archive divider), and add overflow:hidden so the divider's top margin never
-		   collapses — every column's first divider sits at content top + 8px */
-		.waterfall .pin {
+		   collapses — every column's first divider sits at content top + 8px. The
+		   series/categories list cards get the same treatment (the single-column
+		   version of the tags waterfall). */
+		.waterfall .pin,
+		[data-taxonomy-cards] > section {
 			padding: 0;
 			overflow: hidden;
 		}

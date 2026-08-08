@@ -563,15 +563,21 @@
 		scheduleRebuild();
 	})();
 
-	/* Tags page: keep each card's content vertically centered between its divider
-	   and the next card's divider (uniform text→divider gaps), and center a single
-	   line of titles vertically on the big tag label. */
+	/* Taxonomy cards (tags waterfall + series/categories list): keep each card's
+	   content vertically centered between its divider and the next card's divider
+	   (uniform text→divider gaps), and center a single line of titles vertically
+	   on the big tag label. */
 	(function () {
 		var waterfall = document.querySelector('.waterfall');
-		if (!waterfall) {
+		var cardsList = document.querySelector('[data-taxonomy-cards]');
+		var pins;
+		if (waterfall) {
+			pins = Array.prototype.slice.call(waterfall.querySelectorAll('.pin'));
+		} else if (cardsList) {
+			pins = Array.prototype.slice.call(cardsList.children);
+		} else {
 			return;
 		}
-		var pins = Array.prototype.slice.call(document.querySelectorAll('.waterfall .pin'));
 		if (!pins.length) {
 			return;
 		}
