@@ -466,6 +466,22 @@
 			background-color: rgba(2, 135, 96, 0.14);
 			border-radius: 3px;
 		}
+		/* the tag label of the selected card — same treatment as a focused
+		   preview title, so the card's label reads as "selected" too */
+		.waterfall .pin.vim-active [data-home-tag-name] a,
+		[data-taxonomy-cards] > section.vim-active [data-home-tag-name] a {
+			background-color: rgba(2, 135, 96, 0.14);
+			border-radius: 3px;
+		}
+		/* the site navigation link currently focused (after h enters the nav).
+		   The home title link ([data-site-title], the first nav item) lives in
+		   the h1, outside [data-site-nav], so it needs its own selector. */
+		body.vim-nav [data-site-nav] a.vim-active,
+		body.vim-nav [data-site-title].vim-active {
+			background-color: rgba(2, 135, 96, 0.14);
+			border-radius: 3px;
+			color: #028760;
+		}
 	</style>
 </head>
 
