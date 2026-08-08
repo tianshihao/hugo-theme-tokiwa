@@ -80,6 +80,16 @@
 			line-height: 2.25rem;
 		}
 
+		/* The archive title's line box (2.25rem = 36px) is far taller than its
+		   16px glyph, so the theme's bottom-of-box hover underline (background at
+		   0 100%) would float ~7px below the text. The home list uses a tight
+		   text-xl line box, so its underline hugs the glyph (gap ≈ 0.2px). Pull
+		   the archive underline up by the measured half-leading so it hugs the
+		   text exactly like the home list. */
+		a[data-home-archive-title] {
+			background-position: 0 calc(100% - 6.9px);
+		}
+
 		/* optical centering: center the title on its own text only. The hover
 		   underline is a background line at the bottom of the link box and the
 		   descender space sits below the baseline — neither is part of the font,
