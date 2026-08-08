@@ -83,8 +83,11 @@
 		/* optical centering: center the title on its own text only. The hover
 		   underline is a background line at the bottom of the link box and the
 		   descender space sits below the baseline — neither is part of the font,
-		   so nudge the title down a touch for the font to read as truly centered */
+		   so nudge the title down a touch for the font to read as truly centered.
+		   The date shares the same font/line box, so it gets the same nudge to
+		   sit at the exact same height as the title. */
 		a[data-home-archive-title],
+		[data-home-archive-date],
 		.tag-card-titles a {
 			position: relative;
 			top: 2px;
