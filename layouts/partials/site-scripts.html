@@ -975,7 +975,9 @@
 			var idx = taxActiveCard ? cards.indexOf(taxActiveCard) : -1;
 			var next;
 			if (idx === -1) {
-				next = step > 0 ? 0 : cards.length - 1;
+				/* no selection yet: always start at the top card, whether the
+				   first key was j or k (same as the posts list) */
+				next = 0;
 			} else {
 				next = idx + step;
 			}
@@ -998,7 +1000,8 @@
 			var idx = taxActivePreview ? previews.indexOf(taxActivePreview) : -1;
 			var next;
 			if (idx === -1) {
-				next = step > 0 ? 0 : previews.length - 1;
+				/* no selection yet: always start at the top title, j or k */
+				next = 0;
 			} else {
 				next = idx + step;
 			}
@@ -1020,11 +1023,19 @@
 		}
 
 		function taxJump(which) {
-			var cards = taxCards();
-			if (!cards.length) {
+			if (taxActivePreview) {
+				/* inside a card: gg/G jump the card's titles */
+				var previews = taxPreviews(taxActiveCard);
+				if (previews.length) {
+					taxSetPreview(which === 'first' ? previews[0] : previews[previews.length - 1]);
+				}
 				return;
 			}
-			taxSetCard(which === 'first' ? cards[0] : cards[cards.length - 1]);
+			/* at card level: gg/G jump the cards */
+			var cards = taxCards();
+			if (cards.length) {
+				taxSetCard(which === 'first' ? cards[0] : cards[cards.length - 1]);
+			}
 		}
 
 		function taxDescend() {
@@ -1064,6 +1075,207 @@
 			}
 		}
 
+		/* ---- site navigation bar (the left column of links) ----------------
+		   The vim nav has two panes: the site nav (Posts / Tags / Categories /
+		   Series / About / RSS) and the content list. h = out/left, l = in/right:
+		     list / card level → h enters the nav, l descends into a card
+		     preview level     → h ascends out of the card
+		     nav               → l returns to the list
+		   j/k move within whichever pane has focus; Enter opens; gg/G jump. */
+		var navLinks = [];
+		var navActiveIndex = -1;
+
+		function navItems() {
+			/* the home/title link ("笔记本子") is the first nav item, followed by
+			   the menu links (Posts / Tags / Categories / Series / About / RSS) */
+			var items = [];
+			var title = document.querySelector('[data-site-title]');
+			if (title && title.offsetParent !== null && title.href) {
+				items.push(title);
+			}
+			var list = document.querySelector('[data-site-nav]');
+			if (list) {
+				Array.prototype.forEach.call(list.querySelectorAll('li > a'), function (a) {
+					if (a.offsetParent !== null && a.href) {
+						items.push(a);
+					}
+				});
+			}
+			return items;
+		}
+
+		/* the nav item for the page we're on: exact or prefix match on the path
+		   (e.g. /tags/ and /tags/c++ both map to Tags), so h always returns to
+		   the highlighted item for the current page. Falls back to home. */
+		function currentNavIndex() {
+			var path = window.location.pathname.replace(/\/+$/, '') || '/';
+			var best = 0;
+			var bestLen = -1;
+			navLinks.forEach(function (a, i) {
+				var href = (a.getAttribute('href') || '').split('#')[0].replace(/\/+$/, '') || '/';
+				var matched = href === '/' ? path === '/' : (path === href || path.indexOf(href + '/') === 0);
+				if (matched && href.length > bestLen) {
+					best = i;
+					bestLen = href.length;
+				}
+			});
+			return best;
+		}
+
+		function inNav() {
+			return navActiveIndex >= 0;
+		}
+
+		function navPaint() {
+			navLinks.forEach(function (a, i) {
+				a.classList.toggle('vim-active', i === navActiveIndex);
+			});
+		}
+
+		function navEnter() {
+			if (!navLinks.length) {
+				navLinks = navItems();
+			}
+			if (!navLinks.length) {
+				return;
+			}
+			enterVim();
+			clearActive();
+			taxClearActive();
+			navActiveIndex = currentNavIndex();
+			navPaint();
+			navLinks[navActiveIndex].scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+		}
+
+		function navMove(step) {
+			var n = navLinks.length;
+			if (!n || navActiveIndex < 0) {
+				return;
+			}
+			var next = navActiveIndex + step;
+			if (next < 0) { next = 0; }
+			if (next > n - 1) { next = n - 1; }
+			if (next === navActiveIndex) {
+				return;
+			}
+			navActiveIndex = next;
+			navPaint();
+			navLinks[next].scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+		}
+
+		function navJump(which) {
+			if (!navLinks.length) {
+				return;
+			}
+			navActiveIndex = which === 'first' ? 0 : navLinks.length - 1;
+			navPaint();
+			navLinks[navActiveIndex].scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+		}
+
+		function navLeave() {
+			navLinks.forEach(function (a) { a.classList.remove('vim-active'); });
+			navActiveIndex = -1;
+		}
+
+		/* l / Enter from the nav: "enter" the selected nav item. If it's the page
+		   we're already on, just return to its content (no reload); otherwise
+		   navigate to it. */
+		function navOpen() {
+			var a = navLinks[navActiveIndex];
+			if (!a) {
+				return;
+			}
+			var target = (a.getAttribute('href') || '').split('#')[0].replace(/\/+$/, '');
+			var current = window.location.pathname.replace(/\/+$/, '');
+			if (target === current) {
+				navLeave();
+			} else {
+				window.location.href = a.href;
+			}
+		}
+
+		/* ---- reading view (single article): j/k scroll, gg/G top/bottom ------
+		   The article is the deepest node of the tree — it has no list, so j/k
+		   become smooth scrolling instead of item movement, modelled as a car at
+		   constant velocity from the very first frame (no initial burst):
+		     - a quick tap glides one fixed READ_TAP chunk (constant velocity),
+		     - holding keeps the same constant velocity, releasing stops instantly.
+		   READ_TAP is fixed, independent of article length. */
+		var READ_TAP = 300;      /* px a tap glides (fixed, ~1/4 viewport) */
+		var READ_SPEED = 7;      /* px per frame base velocity (~420px/s) for j/k */
+		var READ_FAST = 5;       /* d/u scroll at this many × j/k speed */
+		var READ_TAP_MS = 160;   /* held longer than this = a hold, not a tap */
+		var readDir = 0;
+		var readRaf = 0;
+		var readMoved = 0;
+		var readDownAt = 0;
+		var readLast = 0;
+		var readSpeed = 1;       /* current speed multiplier (1 = j/k, READ_FAST = d/u) */
+		var readFinishingTap = false;
+
+		/* a single article page: <article> is present but there is no post list
+		   and no taxonomy cards to navigate (home / posts / tags / series all
+		   carry one of those) */
+		function isReading() {
+			return !!document.querySelector('article')
+				&& !document.querySelector('[data-home-post-item]')
+				&& !document.querySelector('[data-taxonomy-cards] > section');
+		}
+
+		function readStart(dir, mult) {
+			readDir = dir;
+			readSpeed = mult;
+			readMoved = 0;
+			readFinishingTap = false;
+			readDownAt = Date.now();
+			readLast = 0;
+			if (!readRaf) {
+				readRaf = requestAnimationFrame(readLoop);
+			}
+		}
+
+		/* time-based constant velocity: each frame scrolls by the real elapsed
+		   time, so the speed is constant even if the frame rate wobbles */
+		function readLoop(now) {
+			if (readDir === 0) {
+				readRaf = 0;
+				return;
+			}
+			var dt = readLast ? Math.min(50, now - readLast) : 16;
+			readLast = now;
+			var step = READ_SPEED * readSpeed * dt / 16.67;
+			window.scrollBy(0, readDir * step);
+			readMoved += step;
+			if (readFinishingTap && readMoved >= READ_TAP) {
+				readDir = 0; /* the quick-tap chunk is complete */
+				readRaf = 0;
+				return;
+			}
+			readRaf = requestAnimationFrame(readLoop);
+		}
+
+		function readStop() {
+			/* a quick tap (released before READ_TAP_MS) glides a full READ_TAP
+			   chunk at constant velocity, then stops itself; anything held longer
+			   is a hold → stop right now (the car model) */
+			if (Date.now() - readDownAt < READ_TAP_MS && readMoved < READ_TAP) {
+				readFinishingTap = true;
+			} else {
+				readDir = 0;
+				if (readRaf) {
+					cancelAnimationFrame(readRaf);
+					readRaf = 0;
+				}
+			}
+		}
+
+		function readScrollTo(edge) {
+			window.scrollTo({
+				top: edge === 'top' ? 0 : document.documentElement.scrollHeight,
+				behavior: 'smooth'
+			});
+		}
+
 		function resetLeader() {
 			leader = false;
 			clearTimeout(leaderTimer);
@@ -1085,10 +1297,13 @@
 			}
 		}
 
-		/* Leave vim list navigation: drop the highlight and the body.vim-nav
-		   class, so the rows animate back to the original flush layout. */
+		/* Leave vim list navigation: drop every highlight (list row, taxonomy
+		   card/preview, site nav) and the body.vim-nav class, so the layout
+		   animates back to the original flush state. */
 		function exitVim() {
 			clearActive();
+			taxClearActive();
+			navLeave();
 			document.body.classList.remove('vim-nav');
 		}
 
@@ -1170,6 +1385,12 @@
 				(t && t.isContentEditable)) {
 				return; /* typing — never hijack */
 			}
+			/* IME composition (e.g. Chinese pinyin): skip so vim never acts on
+			   half-composed input. When an IME is merely enabled but not composing,
+			   e.key still reports the physical key, so vim works normally. */
+			if (e.isComposing || e.keyCode === 229) {
+				return;
+			}
 			var rawKey = e.key;
 			var key = rawKey.toLowerCase();
 
@@ -1193,7 +1414,11 @@
 				if (rawKey === 'g') { /* gg: jump to the first */
 					e.preventDefault();
 					enterVim();
-					if (isTaxonomy()) {
+					if (isReading()) {
+						readScrollTo('top');
+					} else if (inNav()) {
+						navJump('first');
+					} else if (isTaxonomy()) {
 						taxJump('first');
 					} else {
 						goToFirst();
@@ -1230,43 +1455,112 @@
 			if (key === 'j' || key === 'k') {
 				e.preventDefault();
 				enterVim();
-				if (isTaxonomy()) {
-					taxMove(key === 'j' ? 1 : -1);
+				var step = key === 'j' ? 1 : -1;
+				if (isReading()) {
+					if (!e.repeat) {
+						readStart(step, 1); /* constant velocity from the first frame */
+					}
+					/* OS repeats add nothing — the loop keeps the same constant
+					   velocity, so there is no second tap and no pause */
+				} else if (inNav()) {
+					navMove(step);
+				} else if (isTaxonomy()) {
+					taxMove(step);
 				} else {
-					move(key === 'j' ? 1 : -1);
+					move(step);
+				}
+			} else if ((key === 'd' || key === 'u') && isReading()) {
+				/* fast scroll inside the article: d = down, u = up, at READ_FAST × j/k */
+				e.preventDefault();
+				enterVim();
+				if (!e.repeat) {
+					readStart(key === 'd' ? 1 : -1, READ_FAST);
 				}
 			} else if (rawKey === 'G') { /* shift+g: jump to the last */
 				e.preventDefault();
 				enterVim();
-				if (isTaxonomy()) {
+				if (isReading()) {
+					readScrollTo('bottom');
+				} else if (inNav()) {
+					navJump('last');
+				} else if (isTaxonomy()) {
 					taxJump('last');
 				} else {
 					goToLast();
 				}
-			} else if (isTaxonomy() && key === 'l') { /* descend into the card */
+			} else if (key === 'l') { /* right / in: nav → page, card → previews, leaf → open */
 				e.preventDefault();
 				enterVim();
-				taxDescend();
-			} else if (isTaxonomy() && key === 'h') { /* ascend back to the card */
-				e.preventDefault();
-				if (taxActivePreview) {
-					taxAscend();
+				if (inNav()) {
+					navOpen();
+				} else if (isTaxonomy() && taxActiveCard && !taxActivePreview) {
+					taxDescend();
+				} else if (isTaxonomy() && taxActivePreview) {
+					taxOpen(); /* leaf: open the preview */
+				} else if (activeItem) {
+					openActive(); /* leaf: open the post */
 				}
-			} else if (key === 'enter' && (activeItem || isTaxonomy())) {
+			} else if (key === 'h') { /* left / out: preview → card, list/card → nav */
 				e.preventDefault();
-				if (isTaxonomy()) {
+				enterVim();
+				if (inNav()) {
+					/* already at the leftmost pane */
+				} else if (isTaxonomy() && taxActivePreview) {
+					taxAscend();
+				} else {
+					navEnter();
+				}
+			} else if (e.code === 'Comma' || e.code === 'Period') {
+				/* page back / forward (home & posts pager). Matched on the PHYSICAL
+				   key (e.code), not e.key: with a Chinese IME active, the , and .
+				   keys emit ，。 through e.key, which would never match. e.code
+				   reports the keyboard position regardless of IME. */
+				var pager = document.querySelector('[data-home-pager]');
+				var dir = e.code === 'Comma' ? 'prev' : 'next';
+				var pageLink = pager ? pager.querySelector('[data-home-' + dir + ']') : null;
+				var pageLi = pageLink ? pageLink.closest('li') : null;
+				if (pageLink && pageLi && !pageLi.classList.contains('disabled')) {
+					e.preventDefault();
+					enterVim();
+					pageLink.click();
+				}
+			} else if (key === '/' && !inNav()) { /* focus the site search box */
+				e.preventDefault();
+				var search = document.getElementById('searchInput');
+				if (search) {
+					exitVim();
+					search.focus();
+				}
+			} else if (key === 'enter' && (activeItem || isTaxonomy() || inNav())) {
+				e.preventDefault();
+				if (inNav()) {
+					navOpen();
+				} else if (isTaxonomy()) {
 					taxOpen();
 				} else {
 					openActive();
 				}
 			} else if (key === 'escape') {
-				if (isTaxonomy()) {
+				if (inNav()) {
+					navLeave();
+					exitVim();
+				} else if (isTaxonomy()) {
 					taxExit();
 				} else {
 					exitVim();
 				}
 			}
 		}, true); /* capture phase: catch keys even if an inner element stops them */
+
+		/* releasing a scroll key stops the reading-view scroll (or starts the tap
+		   glide); covers j/k/d/u and their shifted variants */
+		window.addEventListener('keyup', function (e) {
+			var k = e.key;
+			if (k === 'j' || k === 'k' || k === 'J' || k === 'K' ||
+				k === 'd' || k === 'D' || k === 'u' || k === 'U') {
+				readStop();
+			}
+		}, true);
 
 		/* keep the highlight bounds in sync when the window is resized */
 		window.addEventListener('resize', function () {

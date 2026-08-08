@@ -57,13 +57,47 @@ taxonomy cards each card shows its divider at the top.
 - **Column-end card** (no next divider in its column): only the top gap is
   pinned to GAP; the bottom padding is left as-is.
 
-## 4. Vim navigation
+## 4. Vim navigation — a three-level tree
 
-Leader keys (press `g` then a letter): `h` home, `p` posts, `t` tags,
-`c` categories, `s` series. `j`/`k` move; `gg`/`G` jump to first/last;
-`Enter` opens; on taxonomy pages `l` descends into a card's preview list and
-`h` ascends back; `Esc`/`Ctrl+C` exits vim mode. `body.vim-nav` gives list rows
-a horizontal inset so the selection has breathing room.
+The site is a horizontal tree, navigated with one right hand:
+
+```
+Level 1  site nav    (home title first, then Posts/Tags/Categories/Series/About/RSS)
+Level 2  the page    (posts list, or taxonomy cards)
+Level 3  card titles (tags/categories/series — inside a card)
+```
+
+- `j`/`k` — move within the current level (nav item, post, card, or title).
+  The first `j` or `k` always selects the top item (never wraps to the last).
+- `h` — ascend one level (out): title → card → nav. Returning to the nav
+  highlights the nav item for the page you're on (e.g. `Tags` on /tags/).
+- `l` — descend one level (in): nav → the selected nav item's page; card →
+  its titles. At a leaf (a post or a title) `l` opens the link.
+- `gg`/`G` — first/last of the current level (nav → home/RSS; cards, titles
+  and posts → their own first/last).
+- `Enter` — open / enter the selected item (same as `l` at a leaf).
+- `,`/`.` — previous / next page (home & posts pager).
+- `/` — focus the search box. Leader keys: `gh` `gp` `gt` `gc` `gs`.
+- `Esc`/`Ctrl+C` — exit vim mode. `body.vim-nav` insets the rows.
+
+Keys come from the keyboard via `e.key` — except `,`/`.`, which match the
+physical key via `e.code` (a Chinese IME emits `，。` through `e.key`, so only
+the physical position is reliable there). All keys are guarded by
+`e.isComposing` / `keyCode === 229` so IME composition never hijacks vim — an
+IME that is merely enabled (not composing) still reports the physical key.
+
+The model is the same as vim-like file managers (ranger / yazi) and TUI apps:
+`j`/`k` siblings, `h` parent, `l` child, `Enter` open — a deliberately familiar
+mental model for vim users.
+
+A single article (reached by opening a list item) is the deepest node — it has
+no list, so `j`/`k` become smooth scrolling instead of item movement, modelled
+as a car at constant velocity from the very first frame (the first movement is
+small, not a burst): a quick tap glides one fixed `READ_TAP = 300px` chunk,
+holding keeps the same constant speed and stops instantly on release (the loop
+is time-based, so the speed holds even if the frame rate wobbles). `d`/`u`
+scroll at `READ_FAST = 5×` the j/k speed (like Ctrl+d/Ctrl+u). `gg`/`G` jump to
+the top / bottom.
 
 ## 5. Highlight (vim cursor) — align to dividers
 
