@@ -568,16 +568,15 @@
 	   (uniform text→divider gaps), and center a single line of titles vertically
 	   on the big tag label. */
 	(function () {
-		var waterfall = document.querySelector('.waterfall');
+		/* Every taxonomy list page (tags / categories / series) now renders from
+		   the same terms.html template, so all three carry [data-taxonomy-cards];
+		   tags additionally gets the .waterfall class for its two-column layout.
+		   Collect the cards uniformly from the container's direct children. */
 		var cardsList = document.querySelector('[data-taxonomy-cards]');
-		var pins;
-		if (waterfall) {
-			pins = Array.prototype.slice.call(waterfall.querySelectorAll('.pin'));
-		} else if (cardsList) {
-			pins = Array.prototype.slice.call(cardsList.children);
-		} else {
+		if (!cardsList) {
 			return;
 		}
+		var pins = Array.prototype.slice.call(cardsList.children);
 		if (!pins.length) {
 			return;
 		}
