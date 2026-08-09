@@ -8,9 +8,11 @@
 		</a>
 	</li>
 	{{ end }}
-	{{ if .OutputFormats.Get "RSS" }}
+	{{ $rss := .OutputFormats.Get "RSS" }}
+	{{ if not $rss }}{{ $rss = site.Home.OutputFormats.Get "RSS" }}{{ end }}
+	{{ if $rss }}
 	<li>
-		<a href='{{ with .OutputFormats.Get "RSS" }}{{ .RelPermalink }}{{ end }}'>RSS</a>
+		<a href="{{ $rss.RelPermalink }}">RSS</a>
 	</li>
 	{{ end }}
 	{{ end }}
