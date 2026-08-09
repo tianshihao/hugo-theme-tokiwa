@@ -279,13 +279,17 @@ empty article and no cards).
   its box AND its tag label carries a teal pill (the second-layer highlight)
   while the card is selected; the preview TITLE keeps a teal pill while the
   cursor is on it. Only `l` to the next layer changes things (below).
-- **The pill is as tall as the card's highlight box** (`syncTagPill()`): the
-  box spans the whole content between the dividers, but the label alone was
-  only the 2-line drop-cap's height, so its bottom fell short. On selecting a
-  card the JS stretches the label link to the box (inline-flex keeps the
-  drop-cap centered) and aligns its top edge to the box's top; deselection and
-  vim-exit reset it. So whether the preview titles wrap to one line or several,
-  the pill always matches the highlight exactly.
+- **The pill is vertically CENTERED on the highlight box** (`syncTagPill()`):
+  the pill is the tag label's own (2-line) box and always keeps its natural
+  size (label + symmetric leading) — it is never stretched to the box. On
+  selecting a card the JS translates the label so its vertical center lands on
+  the box's center, for 1-line, 2-line AND 3+-line cards alike (for a 2-line
+  card the box is only a few px taller than the pill, so the shift is tiny; the
+  same center rule holds however tall the content is). The shift is applied to
+  `.tag-label` (the pill's container), not the `<a>`, because `.tag-label`'s
+  `overflow:hidden` would clip a relatively-offset link whose background pokes
+  below its box, and a relative offset never reflows the titles. Deselection
+  (moving to another card) and vim-exit reset it.
 - **Only `l` to the NEXT layer turns the PREVIOUS layer's font purple-red**
   (medium-red-violet, the same as the nav's current-page indicator): nav →
   content turns the nav item purple (set only by `updateNavCurrent()` on a
