@@ -1185,6 +1185,21 @@
 			navCursor.clear();
 		}
 
+		/* Move from the nav into the main content (first-level preview pages):
+		   leave the nav and select the first content item — the first card on a
+		   taxonomy overview, the first post row elsewhere — so l lands with
+		   something already highlighted (mirror of h entering the nav and
+		   selecting the current page's item). Reading pages (about) have no
+		   selectable first item: just leave the nav. */
+		function enterMainContent() {
+			navLeave();
+			if (isTaxonomy()) {
+				cardCursor.enter();
+			} else if (listCursor.items().length) {
+				listCursor.enter();
+			}
+		}
+
 		/* l / Enter from the nav: "enter" the selected nav item. If it's the page
 		   we're already on, just return to its content (no reload); otherwise
 		   navigate to it. */
@@ -1200,6 +1215,43 @@
 			} else {
 				window.location.href = a.href;
 			}
+		}
+
+		/* j/k in the nav on a first-level page enters the selected page right
+		   away — no l needed, like a live preview. The destination gets ?nav=1,
+		   which re-enters the nav there so the next j/k keeps tabbing through
+		   the pages. RSS / external / feed links are not pages: they only
+		   highlight and l / Enter still opens them. Returns true when a
+		   navigation was started (the repeat loop then stops). */
+		function navPreview() {
+			var a = navCursor.current();
+			if (!a || !a.href) {
+				return false;
+			}
+			var href = (a.getAttribute('href') || '').split('#')[0];
+			if (!href || href.indexOf('http') === 0 || href === '#' ||
+				href.slice(-4) === '.xml') {
+				return false;
+			}
+			var current = window.location.pathname.replace(/\/+$/, '') || '/';
+			var target = href.replace(/\/+$/, '') || '/';
+			if (target === current) {
+				return false;
+			}
+			window.location.href = href + (href.indexOf('?') === -1 ? '?' : '&') + 'nav=1';
+			return true;
+		}
+
+		/* A "first-level" page is exactly one of the nav destinations (home /
+		   posts / tags / categories / series / about), so the nav can
+		   live-preview it. Term pages, articles and 404 are deeper: the nav only
+		   highlights and l / Enter still navigates there. */
+		function isFirstLevel() {
+			var path = window.location.pathname.replace(/\/+$/, '') || '/';
+			return navItems().some(function (a) {
+				var href = (a.getAttribute('href') || '').split('#')[0].replace(/\/+$/, '') || '/';
+				return href === path;
+			});
 		}
 
 		/* ---- reading view (single article): j/k scroll, gg/G top/bottom ------
@@ -1462,7 +1514,7 @@
 				if (rawKey === 'g') { /* gg: jump to the first */
 					e.preventDefault();
 					enterVim();
-					if (isReading()) {
+					if (isReading() && !inNav()) {
 						readScrollTo('top');
 					} else {
 						activeCursor().jump('first');
@@ -1500,7 +1552,9 @@
 				e.preventDefault();
 				enterVim();
 				var step = key === 'j' ? 1 : -1;
-				if (isReading()) {
+				/* in the nav the cursor belongs to the nav pane, even on a
+				   reading page (about) — the nav preview takes priority */
+				if (isReading() && !inNav()) {
 					if (!e.repeat) {
 						readStart(step, 1); /* constant velocity from the first frame */
 					}
@@ -1511,9 +1565,14 @@
 					   moves one item, then the rAF loop keeps stepping at a
 					   constant cadence while the key is held — no OS-repeat gap.
 					   OS repeats (e.repeat) are ignored: they only duplicate
-					   the loop. */
+					   the loop. In the nav on a first-level page each move instead
+					   previews the selected page (navPreview). */
 					listMove(step);
-					listRepeatStart(step);
+					if (inNav() && isFirstLevel()) {
+						if (!navPreview()) { listRepeatStart(step); }
+					} else {
+						listRepeatStart(step);
+					}
 				}
 			} else if ((key === 'd' || key === 'u') && isReading()) {
 				/* fast scroll inside the article: d = down, u = up, at READ_FAST × j/k */
@@ -1525,7 +1584,7 @@
 			} else if (rawKey === 'G') { /* shift+g: jump to the last */
 				e.preventDefault();
 				enterVim();
-				if (isReading()) {
+				if (isReading() && !inNav()) {
 					readScrollTo('bottom');
 				} else {
 					activeCursor().jump('last');
@@ -1534,7 +1593,9 @@
 				e.preventDefault();
 				enterVim();
 				if (inNav()) {
-					navOpen();
+					/* first-level: j/k already entered the page, so l just moves
+					   the cursor into the main content and selects its first item */
+					if (isFirstLevel()) { enterMainContent(); } else { navOpen(); }
 				} else if (isTaxonomy() && cardCursor.current() && !previewCursor.current()) {
 					taxDescend();
 				} else if (isTaxonomy() && previewCursor.current()) {
@@ -1576,7 +1637,7 @@
 			} else if (key === 'enter' && (listCursor.current() || isTaxonomy() || inNav())) {
 				e.preventDefault();
 				if (inNav()) {
-					navOpen();
+					if (isFirstLevel()) { enterMainContent(); } else { navOpen(); }
 				} else if (isTaxonomy()) {
 					taxOpen();
 				} else {
@@ -1619,6 +1680,15 @@
 				card.style.setProperty('--hl-bottom', b.bottom + 'px');
 			}
 		});
+
+		/* j/k in the nav navigated here (?nav=1): re-enter the nav and select
+		   this page's item, so the next j/k keeps tabbing through the pages.
+		   The param is dropped from the URL (replaceState) so it can't linger. */
+		if (/(?:^|[?&])nav=1(?:&|$)/.test(window.location.search)) {
+			history.replaceState(null, '', window.location.pathname);
+			enterVim();
+			navCursor.enter();
+		}
 	})();
 
 	/* Bring keyboard focus into the page so the vim keys work immediately. The
