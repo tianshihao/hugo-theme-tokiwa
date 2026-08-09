@@ -481,6 +481,11 @@
 		[data-taxonomy-cards] > section.vim-active [data-home-tag-name] a {
 			background-color: rgba(2, 135, 96, 0.14);
 			border-radius: 3px;
+			/* the pill is stretched by JS (syncTagPill) to match the card's
+			   highlight box height — keep the drop-cap text vertically centered
+			   inside whatever height the box needs */
+			display: inline-flex;
+			align-items: center;
 		}
 		.tag-card-titles a.vim-active {
 			background-color: rgba(2, 135, 96, 0.14);

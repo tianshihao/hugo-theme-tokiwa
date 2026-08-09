@@ -1110,6 +1110,15 @@
 				var b = taxMeasureBounds(card);
 				card.style.setProperty('--hl-top', b.top + 'px');
 				card.style.setProperty('--hl-bottom', b.bottom + 'px');
+				/* stretch the selected card's tag pill to the highlight box, and
+				   reset the others (their pill kept a stretched height from an
+				   earlier selection) */
+				Array.prototype.forEach.call(document.querySelectorAll('[data-home-tag-name] a'), function (a) {
+					a.style.height = '';
+					a.style.position = '';
+					a.style.top = '';
+				});
+				syncTagPill(card, b);
 				if (card.scrollIntoView) {
 					card.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
 				}
@@ -1189,6 +1198,28 @@
 				top: Math.max(1, Math.min(divLine + inset, minTop - cardR.top - 1)),
 				bottom: Math.max(1, Math.min(inset - divLine, cardR.bottom - maxBottom))
 			};
+		}
+
+		/* Stretch the selected card's tag pill to match the highlight box's height
+		   (the box spans the card's whole content between its dividers; the pill
+		   alone was only the 2-line label's own height, so its bottom fell short
+		   of the box). Sets the label link's height to the box and nudges its top
+		   edge onto the box's top edge; the drop-cap text stays vertically
+		   centered via the inline-flex in the CSS. Cleared when the card is
+		   deselected / vim mode exits. */
+		function syncTagPill(card, b) {
+			var link = card.querySelector('[data-home-tag-name] a');
+			if (!link) {
+				return;
+			}
+			var cr = card.getBoundingClientRect();
+			var hlTop = b.top;                   /* box top, relative to card top */
+			var hlBottom = cr.height - b.bottom; /* box bottom, relative to card top */
+			var h = Math.max(0, Math.round(hlBottom - hlTop));
+			var naturalTop = link.getBoundingClientRect().top - cr.top;
+			link.style.height = h + 'px';
+			link.style.position = 'relative';
+			link.style.top = Math.round(hlTop - naturalTop) + 'px';
 		}
 
 		/* taxSetCard / taxSetPreview / taxMoveCard / taxMovePreview / taxMove /
@@ -1718,6 +1749,12 @@
 			/* drop any open-preview marker (the card label's purple font) */
 			Array.prototype.forEach.call(document.querySelectorAll('.preview-open'), function (el) {
 				el.classList.remove('preview-open');
+			});
+			/* undo the tag-pill stretching so the layout returns to natural */
+			Array.prototype.forEach.call(document.querySelectorAll('[data-home-tag-name] a'), function (a) {
+				a.style.height = '';
+				a.style.position = '';
+				a.style.top = '';
 			});
 			document.body.classList.remove('vim-nav');
 		}
@@ -2320,6 +2357,7 @@
 				var b = taxMeasureBounds(card);
 				card.style.setProperty('--hl-top', b.top + 'px');
 				card.style.setProperty('--hl-bottom', b.bottom + 'px');
+				syncTagPill(card, b);
 			}
 		});
 
