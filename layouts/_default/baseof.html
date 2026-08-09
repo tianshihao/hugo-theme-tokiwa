@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="{{ $.Site.LanguageCode | default "en" }}">
-{{ $oneScreen := or .IsHome (and (eq .Kind "section") (eq .Section "posts")) }}
+{{ $oneScreen := partial "one-screen.html" . }}
 <head>
 	<meta charset="utf-8">
 	<meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
@@ -514,8 +514,7 @@
 			</div>
 		</aside>
 		<footer data-home-footer class="w-full md:w-3/5 xl:w-1/2 order-3 max-w-3xl md:order-4 pt-2 self-end">
-			{{ block "footer" . }}
-			{{ end }}
+			{{ block "footer" . }}{{ if partial "one-screen.html" . }}{{ partial "home-pager.html" . }}{{ end }}{{ end }}
 		</footer>
 		{{ block "scripts" . }}{{ partial "site-scripts.html" . }}{{ end }}
 	</div>

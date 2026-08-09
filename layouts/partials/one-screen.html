@@ -1,0 +1,11 @@
+{{- /*
+   one-screen: is this page a "fixed one-screen with footer" page? Home, the
+   posts section, and every taxonomy term page (tags / categories / series —
+   Kind "term", e.g. /tags/c++/) fit their post list to a single screen, pin
+   the aside + footer at the bottom, and show the home-pager. Single source of
+   truth for the body.home-one-screen class AND the footer block default — the
+   block default is a separate template that only receives ".", so it cannot
+   see $oneScreen, hence this shared partial.
+*/ -}}
+{{- $oneScreen := or .IsHome (and (eq .Kind "section") (eq .Section "posts")) (eq .Kind "term") -}}
+{{- return $oneScreen -}}

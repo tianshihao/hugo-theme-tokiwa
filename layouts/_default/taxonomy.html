@@ -3,15 +3,12 @@
 	{{ .Title }}
 </h1>
 <div>
-	<section>
-		{{ range (.Paginator 10).Pages }}
-		<div>
+	<section data-home-posts-container>
+		{{ range .Pages }}
+		<div data-home-post-item>
 			{{ partial "summary.html" . }}
 		</div>
 		{{ end }}
 	</section>
 </div>
 {{ end }}
-{{define "footer"}}
-{{ partial "list-footer.html" . }}
-{{end}}
