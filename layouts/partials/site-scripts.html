@@ -52,66 +52,68 @@
 	};
 
 	/* ---- home & posts one-screen pagination ------------------------------
-	   Home and posts fit their list to a single screen: buildPagesByHeight()
-	   groups items into pages by available height, buildNumberButtons() rebuilds
-	   the pager, applyPostsHeightLimit() caps the list's height, and
-	   pinBottomRails() freezes the aside + footer to the viewport bottom. Only
-	   runs on body.home-one-screen; every other page returns immediately. */
-	(function () {
-		var body = document.body;
-		if (!body || !body.classList.contains('home-one-screen')) {
-			return;
-		}
-
+	   Home, posts and taxonomy term pages fit their list to a single screen:
+	   buildPagesByHeight() groups items into pages by available height,
+	   buildNumberButtons() rebuilds the pager, applyPostsHeightLimit() caps the
+	   list's height, and pinBottomRails() freezes the aside + footer to the
+	   viewport bottom. Exposed as oneScreenPage.boot() / .teardown() so the nav
+	   live-preview can re-boot it after swapping in a new main + footer. */
+	var oneScreenPage = (function () {
 		var MIN_ITEMS_PER_PAGE = 3;
 		var yearMinContent = null; /* 5.125rem, captured once so our inline styles don't pollute it */
 		var yearPadRight = null;   /* 1rem */
 		var desktopMedia = window.matchMedia('(min-width: 768px)');
-		var main = document.querySelector('[data-home-main]');
-		var homeHeaderTitle = document.querySelector('[data-site-title]');
-		var homeAside = document.querySelector('[data-home-aside]');
-		var homeFooter = document.querySelector('[data-home-footer]');
-		var postsContainer = document.querySelector('[data-home-posts-container]');
-		var footer = document.querySelector('footer');
-		var items = Array.prototype.slice.call(document.querySelectorAll('[data-home-post-item]'));
-		var pagerHr = document.querySelector('[data-home-pager-hr]');
-		var pagerUl = document.querySelector('[data-home-pager]');
-		if (!main || !postsContainer || !footer || !items.length || !pagerUl || !homeAside || !homeFooter || !homeHeaderTitle) {
-			return;
+
+		/* elements are re-captured on every boot() so a dynamically-loaded main
+		   or footer is picked up (after a swap the pager anchors are fresh
+		   nodes, so their click handlers are re-wired too) */
+		var main, homeHeaderTitle, homeAside, homeFooter, postsContainer, footer;
+		var items = [];
+		var pagerHr, pagerUl, firstAnchor, prevAnchor, nextAnchor, lastAnchor;
+		var pagesHost, firstLi, prevLi, nextLi, lastLi;
+		var pages = [], currentPage = 0, pageButtons = [], rafId = 0;
+		var active = false;
+
+		function capture() {
+			main = document.querySelector('[data-home-main]');
+			homeHeaderTitle = document.querySelector('[data-site-title]');
+			homeAside = document.querySelector('[data-home-aside]');
+			homeFooter = document.querySelector('[data-home-footer]');
+			postsContainer = document.querySelector('[data-home-posts-container]');
+			footer = document.querySelector('footer');
+			items = Array.prototype.slice.call(document.querySelectorAll('[data-home-post-item]'));
+			pagerHr = document.querySelector('[data-home-pager-hr]');
+			pagerUl = document.querySelector('[data-home-pager]');
+			firstAnchor = pagerUl ? pagerUl.querySelector('[data-home-first]') : null;
+			prevAnchor = pagerUl ? pagerUl.querySelector('[data-home-prev]') : null;
+			nextAnchor = pagerUl ? pagerUl.querySelector('[data-home-next]') : null;
+			lastAnchor = pagerUl ? pagerUl.querySelector('[data-home-last]') : null;
+			pagesHost = pagerUl ? pagerUl.querySelector('[data-home-pages]') : null;
+			firstLi = firstAnchor ? firstAnchor.closest('li') : null;
+			prevLi = prevAnchor ? prevAnchor.closest('li') : null;
+			nextLi = nextAnchor ? nextAnchor.closest('li') : null;
+			lastLi = lastAnchor ? lastAnchor.closest('li') : null;
+			active = !!(main && postsContainer && footer && items.length && pagerUl &&
+				homeAside && homeFooter && homeHeaderTitle && firstAnchor && prevAnchor &&
+				nextAnchor && lastAnchor && pagesHost && firstLi && prevLi && nextLi && lastLi);
+			return active;
 		}
 
-		var firstAnchor = pagerUl.querySelector('[data-home-first]');
-		var prevAnchor = pagerUl.querySelector('[data-home-prev]');
-		var nextAnchor = pagerUl.querySelector('[data-home-next]');
-		var lastAnchor = pagerUl.querySelector('[data-home-last]');
-		var pagesHost = pagerUl.querySelector('[data-home-pages]');
-		if (!firstAnchor || !prevAnchor || !nextAnchor || !lastAnchor) {
-			return;
+		/* undo boot()'s effects (fixed rails, height cap, hidden items) so the
+		   page returns to its natural scroll before another page is loaded */
+		function teardown() {
+			if (!active) { return; }
+			active = false;
+			if (rafId) { cancelAnimationFrame(rafId); rafId = 0; }
+			clearFixedRails();
+			if (postsContainer) {
+				postsContainer.style.maxHeight = '';
+				postsContainer.style.overflow = '';
+			}
+			items.forEach(function (item) {
+				item.classList.remove('home-fit-hidden');
+			});
 		}
-		if (!pagesHost) {
-			return;
-		}
-
-		var firstLi = firstAnchor.closest('li');
-		var prevLi = prevAnchor.closest('li');
-		var nextLi = nextAnchor.closest('li');
-		var lastLi = lastAnchor.closest('li');
-		if (!firstLi || !prevLi || !nextLi || !lastLi) {
-			return;
-		}
-
-		firstAnchor.setAttribute('href', '#');
-		prevAnchor.setAttribute('href', '#');
-		nextAnchor.setAttribute('href', '#');
-		lastAnchor.setAttribute('href', '#');
-
-		if (pagerHr) {
-			pagerHr.style.display = '';
-		}
-
-		var pages = [];
-		var currentPage = 0;
-		var pageButtons = [];
 
 		function showPager(shouldShow) {
 			pagerUl.classList.toggle('hidden', !shouldShow);
@@ -204,6 +206,27 @@
 			}
 		}
 
+		/* the maximum number of page-number slots (including ellipsis) the
+		   pager can show at once, derived from the actual width — the count
+		   adapts to the viewport instead of being hardcoded. The pager grid
+		   reserves 4 × 2rem for the arrows and 4 × 0.5rem column gaps; each
+		   slot is a page number (up to 2 digits) plus the 1.25rem gap between
+		   numbers. Bounded to a sane range: never below 5 (so the classic
+		   1 … cur … last layout always fits) and never above 9. */
+		function computeMaxSlots() {
+			var pager = pagerUl;
+			if (!pager) {
+				return 7;
+			}
+			var pr = pager.getBoundingClientRect();
+			var fixed = 4 * 32 + 4 * 8;      /* 4 × 2rem + 4 × 0.5rem column gaps */
+			var available = Math.max(0, pr.width - fixed);
+			var slotGap = 20;                /* the [data-home-pages] gap, 1.25rem */
+			var twoDigit = 20;               /* a 2-digit serif page number */
+			var n = Math.floor((available + slotGap) / (twoDigit + slotGap));
+			return Math.max(5, Math.min(n, 9));
+		}
+
 		function buildNumberButtons() {
 			pagesHost.innerHTML = '';
 			pageButtons = [];
@@ -211,14 +234,56 @@
 				return;
 			}
 
-			var shouldShow = {};
-			for (var i = 0; i < pages.length; i += 1) {
-				shouldShow[i] = (i === 0) || (i === pages.length - 1) || (Math.abs(i - currentPage) <= 1);
+			/* how many page-number slots (including ellipsis) the pager may
+			   occupy at once, computed from the current width (computeMaxSlots).
+			   The ellipsis hides pages ONLY when there are more pages than this —
+			   with exactly this many pages every number is shown, because turning
+			   one of them into an ellipsis would still leave the same number of
+			   slots (just strictly less info). So the ellipsis kicks in at
+			   total == MAX_SLOTS + 1, not at total == MAX_SLOTS. */
+			var MAX_SLOTS = computeMaxSlots();
+			var total = pages.length;
+			var cur = currentPage + 1; /* 1-based */
+			var slots = [];            /* page numbers, or '...' for a hidden run */
+
+			if (total <= MAX_SLOTS) {
+				for (var s = 1; s <= total; s += 1) {
+					slots.push(s);
+				}
+			} else {
+				/* first and last are always shown; a window around the current
+				   page fills the rest and hidden runs collapse to '...'. The
+				   window shrinks until everything fits in MAX_SLOTS, keeping the
+				   current page visible. */
+				var lo = Math.max(2, cur - 1);
+				var hi = Math.min(total - 1, cur + 1);
+				while (true) {
+					var cand = [];
+					if (lo > 2) { cand.push(1, '...'); } else { cand.push(1); }
+					for (var p = lo; p <= hi; p += 1) { cand.push(p); }
+					if (hi < total - 1) { cand.push('...', total); } else { cand.push(total); }
+					if (cand.length <= MAX_SLOTS) {
+						slots = cand;
+						break;
+					}
+					if (hi > cur && lo < cur) {
+						/* both sides have room: drop from the wider hidden gap */
+						if (lo - 1 >= total - 1 - hi) { lo += 1; } else { hi -= 1; }
+					} else if (hi > cur) {
+						hi -= 1;
+					} else if (lo < cur) {
+						lo += 1;
+					} else {
+						slots = cand; /* window is just [cur]; nothing to drop */
+						break;
+					}
+				}
 			}
 
 			var lastWasEllipsis = false;
-			for (var j = 0; j < pages.length; j += 1) {
-				if (!shouldShow[j]) {
+			for (var j = 0; j < slots.length; j += 1) {
+				var slot = slots[j];
+				if (slot === '...') {
 					if (!lastWasEllipsis) {
 						var ellipsisLi = document.createElement('li');
 						ellipsisLi.className = 'page-item disabled';
@@ -235,8 +300,8 @@
 				var a = document.createElement('a');
 				a.className = 'page-link';
 				a.href = '#';
-				a.textContent = String(j + 1);
-				a.setAttribute('data-home-page-index', String(j));
+				a.textContent = String(slot);
+				a.setAttribute('data-home-page-index', String(slot - 1));
 				a.addEventListener('click', function (event) {
 					event.preventDefault();
 					var raw = event.currentTarget.getAttribute('data-home-page-index');
@@ -548,35 +613,78 @@
 			rafId = window.requestAnimationFrame(buildPagesByHeight);
 		}
 
-		firstAnchor.addEventListener('click', function (event) {
-			event.preventDefault();
-			gotoFirstPage();
-		});
-		prevAnchor.addEventListener('click', function (event) {
-			event.preventDefault();
-			gotoPrevPage();
-		});
-		nextAnchor.addEventListener('click', function (event) {
-			event.preventDefault();
-			gotoNextPage();
-		});
-		lastAnchor.addEventListener('click', function (event) {
-			event.preventDefault();
-			gotoLastPage();
-		});
+		var wired = false;
+		function boot() {
+			if (!capture()) {
+				return;
+			}
+			/* every load / re-load of a one-screen list starts at page 0: the nav
+			   live-preview swaps home ↔ posts ↔ term in place, and the paginator
+			   must NOT carry the previous page's position across — home on page 5
+			   loading posts must show posts page 1, not inherit page 5. (A later
+			   restoreCursor() can bring back a saved page number for a vim-return.) */
+			currentPage = 0;
+			firstAnchor.setAttribute('href', '#');
+			prevAnchor.setAttribute('href', '#');
+			nextAnchor.setAttribute('href', '#');
+			lastAnchor.setAttribute('href', '#');
+			if (pagerHr) {
+				pagerHr.style.display = '';
+			}
+			/* the pager anchors are fresh nodes after a content swap, so their
+			   click handlers must be re-wired on every boot; the window / media
+			   listeners are wired once (they only schedule a rebuild, which is
+			   cheap and deduped by rafId) */
+			firstAnchor.addEventListener('click', function (event) {
+				event.preventDefault();
+				gotoFirstPage();
+			});
+			prevAnchor.addEventListener('click', function (event) {
+				event.preventDefault();
+				gotoPrevPage();
+			});
+			nextAnchor.addEventListener('click', function (event) {
+				event.preventDefault();
+				gotoNextPage();
+			});
+			lastAnchor.addEventListener('click', function (event) {
+				event.preventDefault();
+				gotoLastPage();
+			});
+			if (!wired) {
+				wired = true;
+				document.addEventListener('DOMContentLoaded', scheduleRebuild);
+				window.addEventListener('load', scheduleRebuild);
+				window.addEventListener('resize', scheduleRebuild);
+				if (desktopMedia.addEventListener) {
+					desktopMedia.addEventListener('change', scheduleRebuild);
+				} else if (desktopMedia.addListener) {
+					desktopMedia.addListener(scheduleRebuild);
+				}
+				if (document.fonts && document.fonts.ready) {
+					document.fonts.ready.then(scheduleRebuild);
+				}
+			}
+			scheduleRebuild();
+		}
 
-		document.addEventListener('DOMContentLoaded', scheduleRebuild);
-		window.addEventListener('load', scheduleRebuild);
-		window.addEventListener('resize', scheduleRebuild);
-		if (desktopMedia.addEventListener) {
-			desktopMedia.addEventListener('change', scheduleRebuild);
-		} else if (desktopMedia.addListener) {
-			desktopMedia.addListener(scheduleRebuild);
+		/* the current page index, so the vim return can save which page a list
+		   was on and restore it later */
+		function currentPageIndex() {
+			return currentPage;
 		}
-		if (document.fonts && document.fonts.ready) {
-			document.fonts.ready.then(scheduleRebuild);
+
+		/* switch to a saved page (h returning to a list restores the page the
+		   item was on, not just the item) */
+		function restorePage(page) {
+			if (!pages.length) {
+				return;
+			}
+			renderPage(page);
 		}
-		scheduleRebuild();
+
+		return { boot: boot, teardown: teardown, currentPageIndex: currentPageIndex,
+			restorePage: restorePage };
 	})();
 
 	/* ---- taxonomy cards: divider centering & long-tag fit ----------------
@@ -591,20 +699,10 @@
 	     - 2 lines  → top = tag top,  bottom = tag bottom   (== 2nd title line)
 	     - 3+ lines → top = tag top,  bottom = last line
 	   In every case align() re-pads so text→own divider == text→next divider
-	   == GAP, i.e. the content sits centered between the two dividers. */
-	(function () {
-		/* Every taxonomy list page (tags / categories / series) now renders from
-		   the same terms.html template, so all three carry [data-taxonomy-cards];
-		   tags additionally gets the .waterfall class for its two-column layout.
-		   Collect the cards uniformly from the container's direct children. */
-		var cardsList = document.querySelector('[data-taxonomy-cards]');
-		if (!cardsList) {
-			return;
-		}
-		var pins = Array.prototype.slice.call(cardsList.children);
-		if (!pins.length) {
-			return;
-		}
+	   == GAP, i.e. the content sits centered between the two dividers. Exposed as
+	   taxonomyCards.boot() so the nav live-preview re-aligns the cards after
+	   swapping in a new taxonomy main. */
+	var taxonomyCards = (function () {
 		/* The design gap (px) between the content's visible text and each of the
 		   two dividers that bound it: the card's own divider above and the next
 		   card's divider below. Aligning BOTH gaps to GAP is what centers the
@@ -612,6 +710,8 @@
 		   pin the top gap to GAP. Sourced from TAXONOMY_DESIGN (single source)
 		   so the vim highlight in taxMeasureBounds always agrees. */
 		var GAP = TAXONOMY_DESIGN.GAP;
+		var pins = [];   /* re-captured on every rebuild (cards are fresh after a swap) */
+		var wired = false;
 
 		function rangeRect(el) {
 			var r = document.createRange();
@@ -775,16 +875,29 @@
 		}
 
 		function rebuild() {
+			/* re-capture the cards — they are fresh nodes after a content swap */
+			var cardsList = document.querySelector('[data-taxonomy-cards]');
+			pins = cardsList ? Array.prototype.slice.call(cardsList.children) : [];
+			if (!pins.length) {
+				return;
+			}
 			syncLabelFontSize();
 			fitLongTags();
 			align();
 		}
 
-		rebuild();
-		window.addEventListener('resize', rebuild);
-		if (document.fonts && document.fonts.ready) {
-			document.fonts.ready.then(rebuild);
+		function boot() {
+			rebuild();
+			if (!wired) {
+				wired = true;
+				window.addEventListener('resize', rebuild);
+				if (document.fonts && document.fonts.ready) {
+					document.fonts.ready.then(rebuild);
+				}
+			}
 		}
+
+		return { boot: boot };
 	})();
 
 	/* ---- vim navigation ----------------------------------------------------
@@ -808,11 +921,24 @@
 			s: '/series/'       /* series */
 		};
 
+		/* the path of the page whose main is currently shown. The nav
+		   live-preview swaps content in place without navigating, so the URL
+		   stays put but this tracks which page the user is actually looking at —
+		   used by currentNavIndex() so h returns to the right nav item. It is
+		   normalized (no trailing slash, home = '/') so a saved vim-return path
+		   always matches the URL form used in comparisons; a raw pathname would
+		   carry a trailing slash on real pages and break that matching. */
+		var effectivePath = normalizePath(window.location.pathname);
+
 		/* The home and posts lists render rows with different shapes, so the
 		   content a row's selection card should wrap — and the link Enter opens
-		   — differ per page. That detail is captured once here, as a small
-		   per-page config, instead of being sniffed inside every function. */
-		var isPosts = !!document.querySelector('a[data-home-archive-title]');
+		   — differ per page. The config is re-derived live (not captured once)
+		   because the nav live-preview swaps home/posts content in place: the
+		   archive rows appear on home after a preview, so the row shape must
+		   follow whatever main currently shows, not what the URL says. */
+		function isPostsContent() {
+			return !!document.querySelector('a[data-home-archive-title]');
+		}
 		/* Checked live on every key (not once at load) so a late-rendered
 		   taxonomy list or an outdated cached copy can't desync the routing.
 		   All three taxonomy pages (tags / categories / series) share the
@@ -821,19 +947,21 @@
 		function isTaxonomy() {
 			return !!document.querySelector('[data-taxonomy-cards] > section');
 		}
-		var listConfig = isPosts ? {
-			/* posts rows: the date + title (+ description); the year column
-			   label and the group divider are markers, not row content */
-			contentSelectors: ['[data-home-archive-date]',
-				'a[data-home-archive-title]', '[data-home-post-desc]'],
-			openSelectors: ['a[data-home-archive-title]']
-		} : {
-			/* home rows: title → description → tags/date (the pb-8 bottom
-			   padding is not content) */
-			contentSelectors: ['[data-home-post-title]',
-				'[data-home-post-desc]', '.flex.flex-wrap.justify-between'],
-			openSelectors: ['[data-home-post-title] a', 'a[href]']
-		};
+		function currentListConfig() {
+			return isPostsContent() ? {
+				/* posts rows: the date + title (+ description); the year column
+				   label and the group divider are markers, not row content */
+				contentSelectors: ['[data-home-archive-date]',
+					'a[data-home-archive-title]', '[data-home-post-desc]'],
+				openSelectors: ['a[data-home-archive-title]']
+			} : {
+				/* home rows: title → description → tags/date (the pb-8 bottom
+				   padding is not content) */
+				contentSelectors: ['[data-home-post-title]',
+					'[data-home-post-desc]', '.flex.flex-wrap.justify-between'],
+				openSelectors: ['[data-home-post-title] a', 'a[href]']
+			};
+		}
 
 		/* Wrap the selection card around the row's content (the min/max of the
 		   configured content elements) with a 2px margin, so every row's
@@ -843,7 +971,7 @@
 			var minTop = Infinity;
 			var maxBottom = -Infinity;
 			var found = false;
-			listConfig.contentSelectors.forEach(function (sel) {
+			currentListConfig().contentSelectors.forEach(function (sel) {
 				var el = item.querySelector(sel);
 				if (el) {
 					var r = el.getBoundingClientRect();
@@ -863,8 +991,9 @@
 
 		/* find the link Enter should open, in config order */
 		function findOpenLink(item) {
-			for (var i = 0; i < listConfig.openSelectors.length; i += 1) {
-				var a = item.querySelector(listConfig.openSelectors[i]);
+			var cfg = currentListConfig();
+			for (var i = 0; i < cfg.openSelectors.length; i += 1) {
+				var a = item.querySelector(cfg.openSelectors[i]);
 				if (a && a.href) {
 					return a;
 				}
@@ -1073,6 +1202,10 @@
 			}
 			var previews = taxPreviews(card);
 			if (previews.length) {
+				/* mark the card as the open parent: after l descends into its
+				   previews, the card's label font turns purple-red (the previous
+				   layer indicator); ascending / exiting clears it */
+				card.classList.add('preview-open');
 				previewCursor.select(previews[0]); /* keeps the card highlighted */
 			}
 		}
@@ -1080,6 +1213,7 @@
 		function taxAscend() {
 			var card = cardCursor.current();
 			if (card) {
+				card.classList.remove('preview-open');
 				previewCursor.clear();   /* drop the preview, keep the card */
 				cardCursor.select(card); /* re-measure + re-scroll the card */
 			}
@@ -1087,12 +1221,29 @@
 
 		function taxOpen() {
 			var link;
+			var previewIndex = null;
 			if (previewCursor.current()) {
 				link = previewCursor.current();
+				var card = cardCursor.current();
+				if (card) {
+					previewIndex = taxPreviews(card).indexOf(link);
+				}
 			} else if (cardCursor.current()) {
 				link = cardCursor.current().querySelector('[data-home-tag-name] a');
 			}
 			if (link && link.href) {
+				/* remember where we came from so h on the term page / article can
+				   restore the same card (and, for a preview, the same title). path
+				   uses effectivePath (the shown taxonomy page) — the nav live-
+				   preview can show /tags/ while the URL still says /posts/ */
+				var openCard = cardCursor.current();
+				saveReturnContext({
+					path: effectivePath,
+					type: 'card',
+					cardIndex: openCard ? taxCards().indexOf(openCard) : -1,
+					previewIndex: previewIndex,
+					href: link.href
+				});
 				window.location.href = link.href;
 			}
 		}
@@ -1152,7 +1303,7 @@
 		   (e.g. /tags/ and /tags/c++ both map to Tags), so h always returns to
 		   the highlighted item for the current page. Falls back to home. */
 		function currentNavIndex(list) {
-			var path = window.location.pathname.replace(/\/+$/, '') || '/';
+			var path = effectivePath.replace(/\/+$/, '') || '/';
 			var best = 0;
 			var bestLen = -1;
 			list.forEach(function (a, i) {
@@ -1179,6 +1330,10 @@
 			cardCursor.clear();
 			previewCursor.clear();
 			navCursor.enter();    /* select the nav item for this page */
+			/* h returning to the nav cancels the purple current-page marker —
+			   it only shows while IN the content (after a commit), never while
+			   navigating the nav */
+			clearNavCurrent();
 		}
 
 		function navLeave() {
@@ -1198,6 +1353,8 @@
 			} else if (listCursor.items().length) {
 				listCursor.enter();
 			}
+			/* committing via l: mark the entered page's nav item purple-red */
+			updateNavCurrent();
 		}
 
 		/* l / Enter from the nav: "enter" the selected nav item. If it's the page
@@ -1217,30 +1374,207 @@
 			}
 		}
 
-		/* j/k in the nav on a first-level page enters the selected page right
-		   away — no l needed, like a live preview. The destination gets ?nav=1,
-		   which re-enters the nav there so the next j/k keeps tabbing through
-		   the pages. RSS / external / feed links are not pages: they only
-		   highlight and l / Enter still opens them. Returns true when a
-		   navigation was started (the repeat loop then stops). */
-		function navPreview() {
+		/* ---- nav live-preview: dynamically load the selected page ----------
+		   In the nav on a first-level page, moving the cursor (j/k/gg/G) loads
+		   the selected page's main + footer into the right pane via fetch — a
+		   live preview, not a navigation: the URL never moves. Only non-article
+		   destinations are previewable; RSS / external links and articles
+		   (about) fall back to highlight-only, and l / Enter navigates there.
+		   Each target type re-boots its machinery after the swap
+		   (oneScreenPage / taxonomyCards), so the paginated list and the card
+		   dividers stay correct. */
+		var previewRequestId = 0;
+
+		function isPageHref(href) {
+			return !!href && href.indexOf('http') !== 0 && href !== '#' &&
+				href.slice(-4) !== '.xml';
+		}
+
+		function normalizePath(p) {
+			return (p || '').split('#')[0].replace(/\/+$/, '') || '/';
+		}
+
+		/* preview the nav item currently under the cursor (called after every
+		   nav move / jump on a first-level page). Even the current page's own
+		   item is re-fetched: after previewing other pages the main no longer
+		   shows it, so moving back must restore it. */
+		function previewSelectedNav() {
 			var a = navCursor.current();
-			if (!a || !a.href) {
-				return false;
+			if (!a || !isFirstLevel()) {
+				return;
 			}
 			var href = (a.getAttribute('href') || '').split('#')[0];
-			if (!href || href.indexOf('http') === 0 || href === '#' ||
-				href.slice(-4) === '.xml') {
-				return false;
+			if (!isPageHref(href)) {
+				return;
 			}
-			var current = window.location.pathname.replace(/\/+$/, '') || '/';
-			var target = href.replace(/\/+$/, '') || '/';
-			if (target === current) {
-				return false;
-			}
-			window.location.href = href + (href.indexOf('?') === -1 ? '?' : '&') + 'nav=1';
-			return true;
+			previewNavTo(href);
 		}
+
+		function previewNavTo(href) {
+			var reqId = ++previewRequestId;
+			return fetch(href).then(function (res) {
+				if (!res.ok) { throw new Error('preview ' + res.status); }
+				return res.text();
+			}).then(function (html) {
+				/* a newer j/k superseded this one — drop it */
+				if (reqId !== previewRequestId) { return false; }
+				var doc = new DOMParser().parseFromString(html, 'text/html');
+				var newMain = doc.querySelector('[data-home-main]');
+				if (!newMain) { return false; }
+				var bodyClass = (doc.body && doc.body.getAttribute('class')) || '';
+				if (bodyClass.indexOf('is-article') !== -1) {
+					return false; /* articles keep a real navigation */
+				}
+				var newFooter = doc.querySelector('[data-home-footer]');
+				applyPreview(newMain.innerHTML, newFooter ? newFooter.innerHTML : '',
+					bodyClass.indexOf('home-one-screen') !== -1, normalizePath(href));
+				return true;
+			}).catch(function () {
+				return false;
+			});
+		}
+
+		function applyPreview(mainHTML, footerHTML, oneScreen, path) {
+			var mainEl = document.querySelector('[data-home-main]');
+			var footerEl = document.querySelector('[data-home-footer]');
+			if (!mainEl) { return; }
+			effectivePath = path || window.location.pathname;
+			/* note: updateNavCurrent() is NOT called here — j/k previews load the
+			   content but must not turn the nav item purple; only a commit (l /
+			   mouse click) marks it purple-red. */
+
+			/* leave the current page's machinery behind */
+			if (document.body.classList.contains('home-one-screen')) {
+				oneScreenPage.teardown();
+			}
+			document.body.classList.remove('home-one-screen');
+			document.body.classList.remove('is-article');
+			listCursor.clear();
+			cardCursor.clear();
+			previewCursor.clear();
+
+			/* swap in the target's content */
+			mainEl.innerHTML = mainHTML;
+			if (footerEl) { footerEl.innerHTML = footerHTML; }
+
+			/* boot the target's machinery */
+			if (oneScreen) {
+				document.body.classList.add('home-one-screen');
+				oneScreenPage.boot();
+			} else if (document.querySelector('[data-taxonomy-cards] > section')) {
+				taxonomyCards.boot();
+			}
+			window.scrollTo(0, 0);
+		}
+
+		/* remove the purple-red current-page marker from every nav link. Called
+		   when h returns to the nav: the purple only ever shows while IN the
+		   content (after a commit), never while navigating the nav. */
+		function clearNavCurrent() {
+			var list = document.querySelector('[data-site-nav]');
+			if (!list) { return; }
+			Array.prototype.forEach.call(list.querySelectorAll('li > a'), function (a) {
+				a.classList.remove('font-medium', 'text-medium-red-violet-600');
+			});
+		}
+
+		/* mirror the template's "current page" nav styling (font-medium +
+		   text-medium-red-violet-600) onto the nav item whose page is currently
+		   shown, so a dynamically-loaded preview looks identical to a real page
+		   load. The template colours by the URL at render time; here we colour by
+		   effectivePath (the shown content) after every swap. */
+		function updateNavCurrent() {
+			var path = effectivePath.replace(/\/+$/, '') || '/';
+			var list = document.querySelector('[data-site-nav]');
+			if (!list) { return; }
+			Array.prototype.forEach.call(list.querySelectorAll('li > a'), function (a) {
+				var href = (a.getAttribute('href') || '').split('#')[0].replace(/\/+$/, '') || '/';
+				var isCurrent = href === path;
+				a.classList.toggle('font-medium', isCurrent);
+				a.classList.toggle('text-medium-red-violet-600', isCurrent);
+			});
+		}
+
+		/* ---- commit a nav item: dynamic load like a click -------------------
+		   The shared action behind a mouse click AND the g-leader commands
+		   (gh/gp/gt/gc/gs) — the g-leader is fully equivalent to clicking the
+		   corresponding nav element. Loading the target's main + footer into
+		   the right pane via the same fetch + swap as j/k/gg/G: no navigation,
+		   the URL never moves. The action moves the vim nav cursor if it is
+		   active (vim state persists through the mouse), and commits by marking
+		   the loaded page's nav item purple-red. RSS / external links and
+		   non-previewable targets (articles / 404) fall back to a real
+		   navigation; on deeper pages the g-leader/click keeps a real
+		   navigation too. */
+		function openNavItem(a) {
+			var href = (a.getAttribute('href') || '').split('#')[0];
+			if (!isPageHref(href) || !isFirstLevel()) {
+				/* leaving for a different top-level page: a pending vim return no
+				   longer applies (this navigation supersedes the h-back) */
+				clearReturnContext();
+				window.location.href = a.href; /* default navigation */
+				return;
+			}
+			if (navCursor.current()) {
+				navCursor.select(a); /* keep the vim highlight coherent */
+			}
+			previewNavTo(href).then(function (applied) {
+				if (!applied) {
+					/* article / 404: preview skipped, go there for real */
+					clearReturnContext();
+					window.location.href = a.href;
+					return;
+				}
+				/* committing: mark the loaded page's nav item purple-red, and drop
+				   the :focus the browser left on the link so it shows right away */
+				updateNavCurrent();
+				if (document.activeElement && document.activeElement.blur) {
+					document.activeElement.blur();
+				}
+			});
+		}
+
+		/* find the nav element whose destination matches a route target, so the
+		   g-leader can act on the exact link a click would have hit */
+		function navItemForHref(target) {
+			var t = normalizePath(target);
+			var title = document.querySelector('[data-site-title]');
+			if (title && normalizePath(title.getAttribute('href') || '') === t) {
+				return title;
+			}
+			var list = document.querySelector('[data-site-nav]');
+			if (list) {
+				var arr = Array.prototype.slice.call(list.querySelectorAll('li > a'));
+				for (var i = 0; i < arr.length; i++) {
+					if (normalizePath(arr[i].getAttribute('href') || '') === t) {
+						return arr[i];
+					}
+				}
+			}
+			return null;
+		}
+
+		function wireNavClicks() {
+			var links = [];
+			var title = document.querySelector('[data-site-title]');
+			if (title && title.href) { links.push(title); }
+			var list = document.querySelector('[data-site-nav]');
+			if (list) {
+				Array.prototype.forEach.call(list.querySelectorAll('li > a'), function (a) {
+					links.push(a);
+				});
+			}
+			links.forEach(function (a) {
+				a.addEventListener('click', function (e) {
+					if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) {
+						return; /* middle / modified click: let the browser open it */
+					}
+					e.preventDefault();
+					openNavItem(a);
+				});
+			});
+		}
+		wireNavClicks();
 
 		/* A "first-level" page is exactly one of the nav destinations (home /
 		   posts / tags / categories / series / about), so the nav can
@@ -1381,6 +1715,10 @@
 			cardCursor.clear();
 			previewCursor.clear();
 			navCursor.clear();
+			/* drop any open-preview marker (the card label's purple font) */
+			Array.prototype.forEach.call(document.querySelectorAll('.preview-open'), function (el) {
+				el.classList.remove('preview-open');
+			});
 			document.body.classList.remove('vim-nav');
 		}
 
@@ -1402,6 +1740,18 @@
 			}
 			var link = findOpenLink(item);
 			if (link) {
+				/* remember where we came from so h on the article can restore the
+				   same page, page-number and highlighted row. path uses
+				   effectivePath — the page actually shown (home / posts / term), not
+				   the URL — because the nav live-preview can show one first-level
+				   page while the URL still says another */
+				saveReturnContext({
+					path: effectivePath,
+					type: 'list',
+					page: oneScreenPage.currentPageIndex(),
+					index: visibleItems().indexOf(item),
+					href: link.href
+				});
 				window.location.href = link.href;
 			}
 		}
@@ -1436,6 +1786,12 @@
 
 		function listMove(step) {
 			activeCursor().move(step);
+			/* in the nav on a first-level page, moving the cursor previews the
+			   selected page into the right pane (j/k, the hold-repeat and
+			   gg/G all go through here) */
+			if (inNav() && isFirstLevel()) {
+				previewSelectedNav();
+			}
 		}
 
 		function listLoop(now) {
@@ -1471,6 +1827,282 @@
 				listRaf = 0;
 			}
 		}
+
+		/* ---- vim return: h on a leaf restores the page it came from ----------
+		   The tree's leaves (articles) and the taxonomy term pages sit one level
+		   below a list (home / posts / term) or a card (tags / categories /
+		   series) page. Leaving one of those (l / Enter, or a mouse click on the
+		   item) is a real navigation, so the vim state would be lost — before
+		   leaving we save where we came from and which item was highlighted; on
+		   the target, h goes back there and re-selects the same item. The
+		   context survives the real navigation in sessionStorage (per-tab, not
+		   across tabs) and is cleared once the return is applied. */
+		var RETURN_KEY = 'tokiwa.vimReturn';
+
+		/* A single return context: where the current leaf (an article) came from,
+		   saved on the real navigation down and cleared once the return is
+		   applied. A taxonomy term page does NOT need a saved context — its own
+		   URL (/tags/c++/) already tells us its parent first-level page (/tags/)
+		   and which card (the C++ card), so h from a term page derives them
+		   directly in returnToSource() instead. Only an article is opaque, so it
+		   carries the context. */
+		function saveReturnContext(ctx) {
+			try {
+				sessionStorage.setItem(RETURN_KEY, JSON.stringify(ctx));
+			} catch (e) { /* private mode / quota: just no return feature */ }
+		}
+
+		function readReturnContext() {
+			try {
+				var raw = sessionStorage.getItem(RETURN_KEY);
+				return raw ? JSON.parse(raw) : null;
+			} catch (e) {
+				return null;
+			}
+		}
+
+		/* consume the context once the return has been applied */
+		function popReturnContext() {
+			try { sessionStorage.removeItem(RETURN_KEY); } catch (e) {}
+		}
+
+		/* drop the context (e.g. leaving for a different first-level page) */
+		function clearReturnContext() {
+			try { sessionStorage.removeItem(RETURN_KEY); } catch (e) {}
+		}
+
+		function currentPathNoSlash() {
+			return window.location.pathname.replace(/\/+$/, '') || '/';
+		}
+
+		/* A first-level page is one of the nav destinations. Its content is only
+		   ever loaded inside the home page (the nav live-preview / a vim-return)
+		   — it never appears on its own URL during navigation. Only deeper
+		   content pages (articles, taxonomy term pages) are reached by a real
+		   navigation, so h returns to them directly but returns to a first-level
+		   page by landing on home (/). */
+		var FIRST_LEVEL_PATHS = ['/', '/posts', '/tags', '/categories', '/series', '/about'];
+
+		function isFirstLevelPath(p) {
+			var t = String(p || '').replace(/\/+$/, '') || '/';
+			return FIRST_LEVEL_PATHS.indexOf(t) !== -1;
+		}
+
+		/* a taxonomy term page's path (/tags/c++ → /tags + the C++ card). The
+		   parent first-level page is derivable from the URL, so a term page never
+		   needs a saved context to know where it came from. */
+		function taxonomyFromTermPath(path) {
+			var seg = String(path || '').split('/').filter(Boolean);
+			if (seg.length >= 2 && (seg[0] === 'tags' || seg[0] === 'categories' || seg[0] === 'series')) {
+				return { taxPath: '/' + seg[0], termHref: '/' + seg[0] + '/' + seg[1] };
+			}
+			return null;
+		}
+
+		/* h on a leaf / term page: navigate back one level. On a taxonomy term
+		   page the parent first-level page is derived from the URL itself; on an
+		   article it comes from the saved context. A first-level page never lands
+		   on its own URL — it lands on home (/), which loads the page's content
+		   into the right pane (applyReturnRestore). Returns true if a return
+		   happened; false lets the caller fall back to entering the nav. */
+		function returnToSource() {
+			var tax = taxonomyFromTermPath(currentPathNoSlash());
+			if (tax) {
+				/* record the derived parent + card so the home page can load the
+				   taxonomy overview and re-select the exact card we came from */
+				saveReturnContext({ path: tax.taxPath, type: 'card', termHref: tax.termHref });
+				if (currentPathNoSlash() === '/') {
+					return false;
+				}
+				window.location.href = '/';
+				return true;
+			}
+			var ret = readReturnContext();
+			if (!ret || !ret.path) {
+				return false;
+			}
+			/* normalize defensively: stale contexts may carry a trailing slash */
+			var there = String(ret.path).replace(/\/+$/, '') || '/';
+			if (currentPathNoSlash() === there) {
+				return false; /* already there (e.g. a stale context) */
+			}
+			if (isFirstLevelPath(there)) {
+				if (currentPathNoSlash() === '/') {
+					return false; /* already home */
+				}
+				window.location.href = '/';
+			} else {
+				window.location.href = there === '/' ? '/' : there + '/';
+			}
+			return true;
+		}
+
+		/* run a callback after the page's machinery has settled (the one-screen
+		   pagination builds its pages inside a rAF chain) */
+		function afterFrames(count, cb) {
+			function tick() {
+				if (--count <= 0) {
+					cb();
+				} else {
+					requestAnimationFrame(tick);
+				}
+			}
+			requestAnimationFrame(tick);
+		}
+
+		/* re-select the item (list row / card / card preview) the return context
+		   recorded, and re-enter vim mode so the state matches what it was
+		   before. Pops this one level afterwards, so a later h on this page
+		   returns to the next level up (term → home's first-level content → nav). */
+		function restoreCursor(ret) {
+			if (ret.type === 'list') {
+				afterFrames(3, function () {
+					if (typeof ret.page === 'number') {
+						oneScreenPage.restorePage(ret.page);
+					}
+					var items = visibleItems();
+					var target = null;
+					if (ret.href) {
+						for (var i = 0; i < items.length; i += 1) {
+							var link = findOpenLink(items[i]);
+							if (link && link.href === ret.href) {
+								target = items[i];
+								break;
+							}
+						}
+					}
+					if (!target && typeof ret.index === 'number' && items[ret.index]) {
+						target = items[ret.index];
+					}
+					if (target) {
+						listCursor.select(target);
+						enterVim();
+					}
+					popReturnContext();
+				});
+			} else if (ret.type === 'card') {
+				afterFrames(2, function () {
+					var cards = taxCards();
+					var card = null;
+					/* a term-derived context carries the tag link href; match the
+					   exact card that way (names can differ in case, e.g. C++ vs c++) */
+					if (ret.termHref) {
+						var want = String(ret.termHref).replace(/\/+$/, '');
+						for (var t = 0; t < cards.length; t += 1) {
+							var link = cards[t].querySelector('[data-home-tag-name] a');
+							if (link && (link.getAttribute('href') || '').replace(/\/+$/, '') === want) {
+								card = cards[t];
+								break;
+							}
+						}
+					}
+					if (!card && typeof ret.cardIndex === 'number' && cards[ret.cardIndex]) {
+						card = cards[ret.cardIndex];
+					}
+					if (card) {
+						cardCursor.select(card);
+						if (typeof ret.previewIndex === 'number') {
+							card.classList.add('preview-open');
+							var previews = taxPreviews(card);
+							var preview = previews[ret.previewIndex];
+							if (preview) {
+								previewCursor.select(preview);
+							}
+						}
+						enterVim();
+					}
+					popReturnContext();
+				});
+			}
+		}
+
+		/* apply a saved return context on the page we landed back on. The target
+		   of a return is always home (/): a first-level page is only ever shown
+		   inside home, so if the saved path is a first-level page other than home
+		   we load its content into the right pane first (SPA), then restore the
+		   cursor. If we landed on a real term page (matching the saved path), the
+		   content is already there and we just restore. Contexts for other pages
+		   (e.g. the leaf itself) are left pending for the actual return target. */
+		function applyReturnRestore() {
+			var ret = readReturnContext();
+			if (!ret) {
+				return;
+			}
+			var there = String(ret.path || '').replace(/\/+$/, '') || '/';
+			var here = currentPathNoSlash();
+			if (here !== '/' && here !== there) {
+				return; /* still pending on a leaf / another page */
+			}
+			if (here === '/') {
+				if (there === '/' || there === here) {
+					restoreCursor(ret);
+				} else if (isFirstLevelPath(there)) {
+					/* load the saved first-level page's content into the right pane
+					   (home stays the URL), then restore the cursor on it */
+					previewNavTo(there + '/').then(function (applied) {
+						if (applied) {
+							restoreCursor(ret);
+						} else {
+							popReturnContext(); /* unexpected: not previewable */
+						}
+					});
+				} else {
+					popReturnContext(); /* stale */
+				}
+				return;
+			}
+			/* here === there (a real term page): restore directly */
+			restoreCursor(ret);
+		}
+
+		/* exposed so the load-time boot block can apply a pending return */
+		window.tokiwaApplyReturnRestore = applyReturnRestore;
+
+		/* mouse parity: clicking a post row / card label / card preview also
+		   records where we came from, so h on the target restores it exactly
+		   like the keyboard path. The click itself is not intercepted — it
+		   navigates as usual, with the return context recorded for the h back. */
+		window.addEventListener('click', function (e) {
+			if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) {
+				return;
+			}
+			var el = e.target;
+			var a = el && el.closest ? el.closest('a') : null;
+			if (!a || !a.href) {
+				return;
+			}
+			if (!isPageHref(a.getAttribute('href') || '')) {
+				return;
+			}
+			var item = a.closest('[data-home-post-item]');
+			if (item) {
+				/* path uses effectivePath (the page actually shown) so clicking a
+				   home / posts / term row while another page is previewed still
+				   returns to the right one */
+				saveReturnContext({
+					path: effectivePath,
+					type: 'list',
+					page: oneScreenPage.currentPageIndex(),
+					index: visibleItems().indexOf(item),
+					href: a.href
+				});
+				return;
+			}
+			var card = a.closest('[data-taxonomy-cards] > section');
+			if (card) {
+				var ctx = {
+					path: effectivePath,
+					type: 'card',
+					cardIndex: taxCards().indexOf(card),
+					href: a.href
+				};
+				var preview = a.parentElement && a.parentElement.classList.contains('tag-card-titles') ? a : null;
+				if (preview) {
+					ctx.previewIndex = taxPreviews(card).indexOf(a);
+				}
+				saveReturnContext(ctx);
+			}
+		}, true);
 
 		/* ---- vim input dispatch (keyboard & mouse) ------------------------
 		   The global keydown / keyup / resize handlers that run the engine:
@@ -1518,6 +2150,7 @@
 						readScrollTo('top');
 					} else {
 						activeCursor().jump('first');
+						previewSelectedNav();
 					}
 					return;
 				}
@@ -1526,11 +2159,11 @@
 					return;
 				}
 				e.preventDefault();
-				/* skip reload if we're already on that page */
-				var current = window.location.pathname.replace(/\/+$/, '');
-				var next = target.replace(/\/+$/, '');
-				if (current !== next) {
-					window.location.href = target;
+				/* gh/gp/gt/gc/gs = click that nav element: dynamic-load its
+				   content into the right pane, never navigate */
+				var a = navItemForHref(target);
+				if (a) {
+					openNavItem(a);
 				}
 				return;
 			}
@@ -1565,14 +2198,10 @@
 					   moves one item, then the rAF loop keeps stepping at a
 					   constant cadence while the key is held — no OS-repeat gap.
 					   OS repeats (e.repeat) are ignored: they only duplicate
-					   the loop. In the nav on a first-level page each move instead
-					   previews the selected page (navPreview). */
+					   the loop. In the nav on a first-level page each move
+					   previews the selected page into the right pane (listMove). */
 					listMove(step);
-					if (inNav() && isFirstLevel()) {
-						if (!navPreview()) { listRepeatStart(step); }
-					} else {
-						listRepeatStart(step);
-					}
+					listRepeatStart(step);
 				}
 			} else if ((key === 'd' || key === 'u') && isReading()) {
 				/* fast scroll inside the article: d = down, u = up, at READ_FAST × j/k */
@@ -1588,6 +2217,7 @@
 					readScrollTo('bottom');
 				} else {
 					activeCursor().jump('last');
+					previewSelectedNav();
 				}
 			} else if (key === 'l') { /* right / in: nav → page, card → previews, leaf → open */
 				e.preventDefault();
@@ -1603,13 +2233,17 @@
 				} else if (listCursor.current()) {
 					openActive(); /* leaf: open the post */
 				}
-			} else if (key === 'h') { /* left / out: preview → card, list/card → nav */
+			} else if (key === 'h') { /* left / out: preview → card, leaf/term → back, list/card → nav */
 				e.preventDefault();
 				enterVim();
 				if (inNav()) {
 					/* already at the leftmost pane */
 				} else if (isTaxonomy() && previewCursor.current()) {
 					taxAscend();
+				} else if (returnToSource()) {
+					/* on a leaf / term page reached from a list or card: h goes back
+					   to that page and restores the cursor there (returnToSource
+					   handled the navigation; no navEnter) */
 				} else {
 					navEnter();
 				}
@@ -1681,14 +2315,19 @@
 			}
 		});
 
-		/* j/k in the nav navigated here (?nav=1): re-enter the nav and select
-		   this page's item, so the next j/k keeps tabbing through the pages.
-		   The param is dropped from the URL (replaceState) so it can't linger. */
-		if (/(?:^|[?&])nav=1(?:&|$)/.test(window.location.search)) {
-			history.replaceState(null, '', window.location.pathname);
-			enterVim();
-			navCursor.enter();
-		}
+		/* keep the highlight bounds in sync when the window is resized */
+		window.addEventListener('resize', function () {
+			var item = listCursor.current();
+			if (item) {
+				listCursor.select(item);
+			}
+			var card = cardCursor.current();
+			if (card) {
+				var b = taxMeasureBounds(card);
+				card.style.setProperty('--hl-top', b.top + 'px');
+				card.style.setProperty('--hl-bottom', b.bottom + 'px');
+			}
+		});
 	})();
 
 	/* Bring keyboard focus into the page so the vim keys work immediately. The
@@ -1708,5 +2347,21 @@
 			focusBody();
 		}
 		window.addEventListener('load', focusBody);
+	})();
+
+	/* Boot the current page's machinery. The one-screen (home / posts / term)
+	   and taxonomy-card (tags / categories / series) modules run once at load;
+	   the nav live-preview re-boots them after swapping in new content. */
+	(function () {
+		if (document.body.classList.contains('home-one-screen')) {
+			oneScreenPage.boot();
+		} else if (document.querySelector('[data-taxonomy-cards] > section')) {
+			taxonomyCards.boot();
+		}
+		/* h on a leaf restores the page it came from: if we just returned to a
+		   list / card page, put the cursor back where it was */
+		if (window.tokiwaApplyReturnRestore) {
+			window.tokiwaApplyReturnRestore();
+		}
 	})();
 </script>

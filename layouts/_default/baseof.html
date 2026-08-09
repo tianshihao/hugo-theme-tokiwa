@@ -481,15 +481,19 @@
 			border-radius: 8px;
 			pointer-events: none;
 		}
-		/* the post preview currently focused inside a card (after l) */
-		.tag-card-titles a.vim-active {
+		/* the card itself is highlighted by the ::before box above, and the
+		   selected card's TAG LABEL carries a teal pill (its second-layer
+		   highlight) while the cursor is on the card. After l descends into the
+		   card that pill is dropped and the label's font turns purple-red (see
+		   .preview-open below) — the label goes from "selected pill" to "open
+		   parent". The preview TITLE inside the card keeps a teal pill while
+		   the cursor is on it. */
+		.waterfall .pin.vim-active [data-home-tag-name] a,
+		[data-taxonomy-cards] > section.vim-active [data-home-tag-name] a {
 			background-color: rgba(2, 135, 96, 0.14);
 			border-radius: 3px;
 		}
-		/* the tag label of the selected card — same treatment as a focused
-		   preview title, so the card's label reads as "selected" too */
-		.waterfall .pin.vim-active [data-home-tag-name] a,
-		[data-taxonomy-cards] > section.vim-active [data-home-tag-name] a {
+		.tag-card-titles a.vim-active {
 			background-color: rgba(2, 135, 96, 0.14);
 			border-radius: 3px;
 		}
@@ -501,6 +505,18 @@
 			background-color: rgba(2, 135, 96, 0.14);
 			border-radius: 3px;
 			color: #028760;
+		}
+
+		/* Only l to the NEXT layer turns the PREVIOUS layer's font purple-red
+		   (the same medium-red-violet as the nav's current page) — a "you came
+		   from here" indicator. In the card it also drops the label's teal pill
+		   (background transparent) so the label reads as the open parent by its
+		   purple font alone. The cursor's own font never changes while j/k. */
+		.waterfall .pin.preview-open [data-home-tag-name] a,
+		[data-taxonomy-cards] > section.preview-open [data-home-tag-name] a {
+			background-color: transparent;
+			color: rgb(178, 59, 131); /* medium-red-violet-600 */
+			--tag-underline: rgb(178, 59, 131);
 		}
 
 		/* vim mode remembers its state even while the mouse is used: the mouse is
