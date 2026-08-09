@@ -34,8 +34,10 @@
 </div>
 {{ end }}
 </div>
+{{ if and (ne .Site.DisqusShortname "") (ne .Site.Params.disableComments true) }}
 <hr />
 <div class="pb-2">
     {{ template "_internal/disqus.html" . }}
 </div>
+{{ end }}
 <hr />
