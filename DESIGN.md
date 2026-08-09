@@ -87,6 +87,30 @@ overview pages (the tags / categories / series waterfalls) navigate cards.
 - `Esc`/`Ctrl+C` — exit vim mode. (`body.vim-nav` is purely a class switch; the
   rows keep their original flush layout — no horizontal inset.)
 
+### Nav live-preview (first-level pages)
+
+On a **first-level** page — a page that is exactly one of the nav destinations
+(home / posts / tags / categories / series / about) — the nav is a live
+preview: `j`/`k` in the nav **enters the selected page immediately**, no `l`
+needed. The destination loads with `?nav=1`, and that page re-enters the nav
+and drops the param (`history.replaceState`), so a held or repeated `j`/`k`
+tabs straight through the pages. On those pages `l`/Enter in the nav moves the
+cursor into the main content **and selects its first item** (first card on a
+taxonomy overview, first post row elsewhere — the mirror of `h` selecting the
+current page's nav item); the current page's nav item stays purple-red (the
+template's `text-medium-red-violet-600`), so "where am I" is always visible
+while navigating content. RSS / external / feed links are not
+pages — they only highlight, `l`/Enter still opens them (`navPreview()` guards
+on `.xml` / `http`). On deeper pages (articles, taxonomy term pages) the nav
+keeps the classic behavior: `j`/`k` move the highlight and `l`/Enter navigate
+there. Because this is a real navigation (not an in-place swap), every page
+renders fully — its own one-screen pagination / waterfall / pager — with no
+state to re-initialize.
+
+The nav also takes priority over the reading view: once `h` has entered the
+nav, `j`/`k`/`gg`/`G` operate on the nav cursor even on a reading page (e.g.
+/About/), instead of scrolling the article.
+
 Keys come from the keyboard via `e.key` — except `,`/`.`, which match the
 physical key via `e.code` (a Chinese IME emits `，。` through `e.key`, so only
 the physical position is reliable there). All keys are guarded by
