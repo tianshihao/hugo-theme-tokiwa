@@ -542,6 +542,15 @@
 				position: static;
 			}
 		}
+
+		/* Article pages show the title in the header, so the body's markdown
+		   level-1 heading (# -> <h1>) is hidden. The markdown files are shared
+		   with other sites and keep their own h1 — only this rendering drops
+		   it. Sections also written with `#` are h1 as well and are hidden too
+		   (per request). The markdown files themselves are never modified. */
+		body.is-article .c-rich-text h1 {
+			display: none;
+		}
 	</style>
 </head>
 
