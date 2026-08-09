@@ -1978,6 +1978,10 @@
 						listCursor.select(target);
 						enterVim();
 					}
+					/* the returned-to page is a committed page — mark its nav item
+					   purple-red (applyPreview only loads the content, so the
+					   current-page indicator would otherwise be missing) */
+					updateNavCurrent();
 					popReturnContext();
 				});
 			} else if (ret.type === 'card') {
@@ -2011,6 +2015,10 @@
 						}
 						enterVim();
 					}
+					/* the returned-to page is a committed page — mark its nav item
+					   purple-red (applyPreview only loads the content, so the
+					   current-page indicator would otherwise be missing) */
+					updateNavCurrent();
 					popReturnContext();
 				});
 			}
