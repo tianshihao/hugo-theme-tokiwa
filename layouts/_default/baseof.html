@@ -341,62 +341,8 @@
 				align-self: end;
 			}
 
-			/* the pager is a 5-column grid — first/prev on the left, page
-			   numbers in the flexible middle, next/last on the right. The
-			   arrows keep their original positions; only the page numbers are
-			   spread apart (see [data-home-pages] gap). */
-			body.home-one-screen [data-home-pager] {
-				display: grid;
-				grid-template-columns: 2rem 2rem minmax(0, 1fr) 2rem 2rem;
-				align-items: center;
-				column-gap: 0.5rem;
-				font-family: serif;
-			}
-
-			/* every cell (arrows and pages alike) centers its content
-			   vertically, so the page-number text and the arrow icons share
-			   the same center line */
-			body.home-one-screen [data-home-pager] > li {
-				list-style: none;
-				display: flex;
-				align-items: center;
-				justify-content: center;
-			}
-			/* the arrows' icon carries a -bottom-1 Tailwind shift; neutralize it
-			   in the pager so the chevrons sit exactly on the numbers' center */
-			body.home-one-screen [data-home-pager] svg {
-				bottom: auto;
-			}
-
-			body.home-one-screen [data-home-pages-wrap] {
-				display: flex;
-				justify-content: center;
-			}
-
-			/* page numbers spread apart (the "too concentrated" fix); numbers
-			   and ellipsis are vertically centered and share the teal */
-			body.home-one-screen [data-home-pages] {
-				display: inline-flex;
-				align-items: center;
-				justify-content: center;
-				gap: 1.25rem;
-				white-space: nowrap;
-			}
-			body.home-one-screen [data-home-pages] > li {
-				display: inline-flex;
-				align-items: center;
-				justify-content: center;
-				line-height: 1;
-			}
-			/* the "..." ellipsis is built by JS as a disabled page-item; give it
-			   the page-number teal instead of the disabled gray, centered. The
-			   period dots sit on the text baseline while the digits rise above
-			   it, so the dots' ink center is ~0.25em lower than the digits' —
-			   lift the ellipsis by that to share the digits' optical center */
-			body.home-one-screen [data-home-pages] > li.page-item.disabled {
-				color: #028760;
-				transform: translateY(-0.25em);
-			}
+			/* the pager layout rules moved OUT of this media query — they must
+			   apply at any width where the pager is shown (see below) */
 
 			body.home-one-screen [data-home-post-title] a {
 				display: inline-block;
@@ -427,6 +373,49 @@
 				width: 100%;
 				height: 0;
 			}
+		}
+
+		/* the home-pager's horizontal layout — OUTSIDE the @media above so it
+		   applies at any width where the pager is shown. (The one-screen pages
+		   hide the pager below the desktop breakpoint via JS, but if it ever
+		   shows in a narrow view the page numbers must stay horizontal — the
+		   default ul/li would otherwise stack vertically.) */
+		body.home-one-screen [data-home-pager] {
+			display: grid;
+			grid-template-columns: 2rem 2rem minmax(0, 1fr) 2rem 2rem;
+			align-items: center;
+			column-gap: 0.5rem;
+			font-family: serif;
+		}
+		body.home-one-screen [data-home-pager] > li {
+			list-style: none;
+			display: flex;
+			align-items: center;
+			justify-content: center;
+		}
+		body.home-one-screen [data-home-pager] svg {
+			bottom: auto;
+		}
+		body.home-one-screen [data-home-pages-wrap] {
+			display: flex;
+			justify-content: center;
+		}
+		body.home-one-screen [data-home-pages] {
+			display: inline-flex;
+			align-items: center;
+			justify-content: center;
+			gap: 1.25rem;
+			white-space: nowrap;
+		}
+		body.home-one-screen [data-home-pages] > li {
+			display: inline-flex;
+			align-items: center;
+			justify-content: center;
+			line-height: 1;
+		}
+		body.home-one-screen [data-home-pages] > li.page-item.disabled {
+			color: #028760;
+			transform: translateY(-0.25em);
 		}
 
 		.home-fit-hidden {
