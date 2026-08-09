@@ -121,7 +121,11 @@ re-enters vim mode. **Only an article carries a saved context** (its parent
 isn't derivable); a **taxonomy term page derives its parent from its own URL**
 (`taxonomyFromTermPath()`: `/tags/c++` → `/tags` + the C++ card via the tag
 link's `href`), so `h` from a term page returns to home with the taxonomy
-overview loaded and the exact card re-selected — no saved context needed. The
+overview loaded and the exact card re-selected — no saved context needed. A
+restored return is a **committed page**, so `restoreCursor()` also calls
+`updateNavCurrent()` afterwards — otherwise the nav item for the returned-to
+first-level page would show no purple-red (the SPA swap only loads the content).
+The
 context survives the real navigation but is per-tab and cleared once applied —
 so a later `h` on the same page goes to the nav, not back here. Without a
 context (direct / search / nav navigation) `h` on a leaf keeps the classic
