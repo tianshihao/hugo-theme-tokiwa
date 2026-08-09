@@ -902,8 +902,8 @@
 
 	/* ---- vim navigation ----------------------------------------------------
 	   Vim-style navigation:
-	   - g as a leader, then h/p/t/c/s to jump to home / posts / tags /
-	     categories / series; gg jumps to the first list row
+	   - g as a leader, then h/p/t/c/s/a to jump to home / posts / tags /
+	     categories / series / about; gg jumps to the first list row
 	   - j / k move a highlight through the post list (home + posts), like
 	     Twitter / Zhihu feed navigation; G (shift+g) jumps to the last row,
 	     Enter opens the highlighted post, Esc / Ctrl+C exit
@@ -918,7 +918,8 @@
 			p: '/posts/',       /* posts */
 			t: '/tags/',        /* tags */
 			c: '/categories/',  /* categories */
-			s: '/series/'       /* series */
+			s: '/series/',      /* series */
+			a: '/about/'        /* about */
 		};
 
 		/* the path of the page whose main is currently shown. The nav
@@ -1550,8 +1551,8 @@
 
 		/* ---- commit a nav item: dynamic load like a click -------------------
 		   The shared action behind a mouse click AND the g-leader commands
-		   (gh/gp/gt/gc/gs) — the g-leader is fully equivalent to clicking the
-		   corresponding nav element. Loading the target's main + footer into
+		   (gh/gp/gt/gc/gs/ga) — the g-leader is fully equivalent to clicking
+		   the corresponding nav element. Loading the target's main + footer into
 		   the right pane via the same fetch + swap as j/k/gg/G: no navigation,
 		   the URL never moves. The action moves the vim nav cursor if it is
 		   active (vim state persists through the mouse), and commits by marking
@@ -2225,7 +2226,7 @@
 					return;
 				}
 				e.preventDefault();
-				/* gh/gp/gt/gc/gs = click that nav element: dynamic-load its
+				/* gh/gp/gt/gc/gs/ga = click that nav element: dynamic-load its
 				   content into the right pane, never navigate */
 				var a = navItemForHref(target);
 				if (a) {

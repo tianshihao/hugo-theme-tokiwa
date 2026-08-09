@@ -93,7 +93,7 @@ overview pages (the tags / categories / series waterfalls) navigate cards.
   and posts → their own first/last).
 - `Enter` — open / enter the selected item (same as `l` at a leaf).
 - `,`/`.` — previous / next page (home & posts pager).
-- `/` — focus the search box. Leader keys: `gh` `gp` `gt` `gc` `gs`.
+- `/` — focus the search box. Leader keys: `gh` `gp` `gt` `gc` `gs` `ga`.
 - `Esc`/`Ctrl+C` — exit vim mode. (`body.vim-nav` is purely a class switch; the
   rows keep their original flush layout — no horizontal inset.)
 - **RSS is not in the nav.** It lives in the **aside** as a social-style icon
@@ -194,7 +194,7 @@ link so the indicator shows immediately (matching a real page load).
 External links and non-previewable targets (articles / 404) fall back to a
 real navigation; clicks from deeper pages navigate normally.
 
-The **g-leader is exactly a mouse click**: `gh`/`gp`/`gt`/`gc`/`gs` resolve
+The **g-leader is exactly a mouse click**: `gh`/`gp`/`gt`/`gc`/`gs`/`ga` resolve
 their route to the matching nav element via `navItemForHref()` (the home title
 is its own first-class item) and call the same shared `openNavItem()` as a
 click — dynamic-load into the right pane on a first-level page (URL never
