@@ -96,8 +96,8 @@ as a car at constant velocity from the very first frame (the first movement is
 small, not a burst): a quick tap glides one fixed `READ_TAP = 300px` chunk,
 holding keeps the same constant speed and stops instantly on release (the loop
 is time-based, so the speed holds even if the frame rate wobbles). `d`/`u`
-scroll at `READ_FAST = 5×` the j/k speed (like Ctrl+d/Ctrl+u). `gg`/`G` jump to
-the top / bottom.
+scroll at `READ_FAST = 5×` the j/k speed (like Ctrl+d/Ctrl+u). `gg`/`G` jump
+instantly to the top / bottom.
 
 ## 5. Highlight (vim cursor) — align to dividers
 

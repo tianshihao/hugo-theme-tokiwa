@@ -1270,9 +1270,10 @@
 		}
 
 		function readScrollTo(edge) {
+			/* gg / G in the article: jump instantly, no animation */
 			window.scrollTo({
 				top: edge === 'top' ? 0 : document.documentElement.scrollHeight,
-				behavior: 'smooth'
+				behavior: 'auto'
 			});
 		}
 
