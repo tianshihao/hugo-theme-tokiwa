@@ -551,6 +551,53 @@
 		body.is-article .c-rich-text h1 {
 			display: none;
 		}
+
+		/* The aside's RSS icon copies the feed to the clipboard on click (it is
+		   not a link, so it needs a button affordance + resets). A brief colour
+		   flash shows success (teal) / failure (red) — same family as the
+		   theme's social icons. */
+		[data-rss-copy] {
+			cursor: pointer;
+			background: none;
+			border: none;
+			padding: 0;
+			position: relative; /* anchor for the "Copied!" toast */
+		}
+		[data-rss-copy].rss-copied {
+			color: #028760; /* eucalyptus-600 — copied */
+		}
+		[data-rss-copy].rss-error {
+			color: #dc2626; /* red-600 — failed */
+		}
+
+		/* the "Copied!" burst: a label anchored to the icon's top-right that
+		   pops in suddenly, rises a little, then explodes into particles. These
+		   are just its base styles + the particle dot — the motion is animated
+		   by JS (site-scripts' rssToast). */
+		.rss-toast {
+			position: absolute;
+			top: -12px;
+			right: -6px;
+			pointer-events: none;
+			z-index: 30;
+			font-family: serif;
+			font-size: 0.75rem;
+			line-height: 1;
+			color: #028760;
+			white-space: nowrap;
+			will-change: transform, opacity;
+		}
+		.rss-particle {
+			position: fixed;
+			width: 4px;
+			height: 4px;
+			margin: -2px 0 0 -2px;
+			border-radius: 50%;
+			background: #028760;
+			pointer-events: none;
+			z-index: 60;
+			will-change: transform, opacity;
+		}
 	</style>
 </head>
 

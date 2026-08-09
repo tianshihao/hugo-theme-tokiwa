@@ -3,6 +3,19 @@
 <div class="flex flex-wrap-reverse md:justify-end content-end md:content-start justify-start items-start {{if gt $count 4}}md:flex-col{{end}}  max-h-16">
 	{{ range $key,$value:=. }}
 	{{ if not (eq $key "_merge") }}
+	{{ if eq $key "rss" }}
+	{{/* RSS is not a link — clicking copies the feed's XML to the clipboard
+	     (site-scripts' delegated [data-rss-copy] handler); it never opens a
+	     page. Same icon styling as the other social links. */}}
+	{{ $rss := site.Home.OutputFormats.Get "RSS" }}
+	<button type="button" data-rss-copy{{ with $rss }} data-rss-url="{{ .RelPermalink }}"{{ end }}
+		class="rss icon pl-1 text-eucalyptus-400 hover:text-java-400"
+		title="copy RSS feed" aria-label="copy RSS feed">
+		<div class="fill-current h-8 w-8">
+			{{ partial "svg/rss-line.svg" . }}
+		</div>
+	</button>
+	{{ else }}
 	<a href='{{$value}}' target="_blank" class="{{- $key}} icon pl-1 text-eucalyptus-400 hover:text-java-400" title="{{- $key}} link" rel="noopener"
 		aria-label="follow on {{$key}}——Opens in a new window">
 		{{/*  <object type="image/svg+xml" data='{{ relURL (printf "%s%s%s" "svg/" $key ".svg") }}' class="w-12 h-12
@@ -11,6 +24,7 @@
 			{{ partial (printf "%s%s%s" "svg/" $key "-line.svg") . }}
 		</div>
 	</a>
+	{{ end }}
 	{{ end }}
 	{{ end }}
 </div>

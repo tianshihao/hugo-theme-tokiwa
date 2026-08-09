@@ -1313,7 +1313,7 @@
 
 		/* ---- site navigation bar (the left column of links) ----------------
 		   The vim nav has two panes: the site nav (Posts / Tags / Categories /
-		   Series / About / RSS) and the content list. h = out/left, l = in/right:
+		   Series / About) and the content list. h = out/left, l = in/right:
 		     list / card level → h enters the nav, l descends into a card
 		     preview level     → h ascends out of the card
 		     nav               → l returns to the list
@@ -1335,7 +1335,7 @@
 
 		function navItems() {
 			/* the home/title link ("笔记本子") is the first nav item, followed by
-			   the menu links (Posts / Tags / Categories / Series / About / RSS) */
+			   the menu links (Posts / Tags / Categories / Series / About) */
 			var items = [];
 			var title = document.querySelector('[data-site-title]');
 			if (title && title.offsetParent !== null && title.href) {
@@ -1431,7 +1431,7 @@
 		   In the nav on a first-level page, moving the cursor (j/k/gg/G) loads
 		   the selected page's main + footer into the right pane via fetch — a
 		   live preview, not a navigation: the URL never moves. Only non-article
-		   destinations are previewable; RSS / external links and articles
+		   destinations are previewable; external / feed links and articles
 		   (about) fall back to highlight-only, and l / Enter navigates there.
 		   Each target type re-boots its machinery after the swap
 		   (oneScreenPage / taxonomyCards), so the paginated list and the card
@@ -1555,7 +1555,7 @@
 		   the right pane via the same fetch + swap as j/k/gg/G: no navigation,
 		   the URL never moves. The action moves the vim nav cursor if it is
 		   active (vim state persists through the mouse), and commits by marking
-		   the loaded page's nav item purple-red. RSS / external links and
+		   the loaded page's nav item purple-red. External links and
 		   non-previewable targets (articles / 404) fall back to a real
 		   navigation; on deeper pages the g-leader/click keeps a real
 		   navigation too. */
@@ -2431,5 +2431,136 @@
 		if (window.tokiwaApplyReturnRestore) {
 			window.tokiwaApplyReturnRestore();
 		}
+	})();
+
+	/* The aside's RSS icon is a copy button, not a link: clicking fetches the
+	   site's RSS XML and writes it to the clipboard (it never navigates).
+	   Delegated on document so it survives the nav live-preview swaps (the
+	   aside itself is never swapped, but delegation is robust). */
+	(function () {
+		/* the "Copied!" burst at the icon's top-right: the label pops in
+		   suddenly, rises a short distance, then explodes into particles. Pure
+		   presentation — every node is removed when its animation finishes. The
+		   embedded webview can throttle animation-finish events, so a particle
+		   whose finish never fires would otherwise snap back (fill:none) to a
+		   solid green dot at its spawn point. Two guards prevent that: every
+		   animation ends with `fill: 'forwards'` (a finished-but-not-removed
+		   node stays invisible at its end state, never a visible dot), and a
+		   sweep timer removes any stragglers/toast after the longest duration
+		   regardless of whether finish ever fired. */
+		function rssToast(btn) {
+			var old = btn.querySelector('.rss-toast');
+			if (old) { old.remove(); }
+			var toast = document.createElement('span');
+			toast.className = 'rss-toast';
+			toast.textContent = 'Copied!';
+			btn.appendChild(toast);
+
+			/* rise first (sudden, no fade-in), then burst */
+			var rise = toast.animate([
+				{ transform: 'translate(0,0)' },
+				{ transform: 'translate(0,-14px)' }
+			], { duration: 300, easing: 'ease-out', fill: 'forwards' });
+			rise.onfinish = function () {
+				var rect = toast.getBoundingClientRect();
+				var cx = rect.left + rect.width / 2;
+				var cy = rect.top + rect.height / 2;
+				var count = 14;
+				for (var i = 0; i < count; i++) {
+					/* IIFE so each particle keeps its own duration/closure */
+					(function () {
+						var p = document.createElement('span');
+						p.className = 'rss-particle';
+						var angle = (Math.PI * 2 * i) / count + Math.random() * 0.6;
+						var dist = 16 + Math.random() * 26;
+						var dx = Math.cos(angle) * dist;
+						var dy = Math.sin(angle) * dist - 8; /* bias upward */
+						p.style.left = cx + 'px';
+						p.style.top = cy + 'px';
+						document.body.appendChild(p);
+						var dur = 480 + Math.random() * 220;
+						var anim = p.animate([
+							{ transform: 'translate(0,0) scale(1)', opacity: 1 },
+							{ transform: 'translate(' + dx.toFixed(1) + 'px,' + dy.toFixed(1) + 'px) scale(0.1)', opacity: 0 }
+						], { duration: dur, easing: 'cubic-bezier(0.12, 0.7, 0.3, 1)', fill: 'forwards' });
+						anim.onfinish = function () {
+							p.remove();
+						};
+						/* fallback: guaranteed removal if finish never fires */
+						setTimeout(function () {
+							if (p.parentNode) { p.remove(); }
+						}, dur + 300);
+					})();
+				}
+				/* the label itself bursts away too */
+				var burst = toast.animate([
+					{ transform: 'translate(0,-14px) scale(1)', opacity: 1 },
+					{ transform: 'translate(0,-24px) scale(1.8)', opacity: 0 }
+				], { duration: 420, easing: 'ease-out', fill: 'forwards' });
+				burst.onfinish = function () {
+					toast.remove();
+				};
+				setTimeout(function () {
+					if (toast.parentNode) { toast.remove(); }
+				}, 420 + 300);
+			};
+			/* last resort: if even the rise's finish never fires, drop the toast
+			   (longest rise 300 + max particle 700 + burst 420 + slack) */
+			setTimeout(function () {
+				if (toast.parentNode) { toast.remove(); }
+			}, 300 + 700 + 420 + 300);
+		}
+
+		document.addEventListener('click', function (e) {
+			var el = e.target;
+			var btn = el && el.closest ? el.closest('[data-rss-copy]') : null;
+			if (!btn) {
+				return;
+			}
+			e.preventDefault();
+			var url = btn.getAttribute('data-rss-url') || '/index.xml';
+			var flash = function (ok) {
+				btn.classList.add(ok ? 'rss-copied' : 'rss-error');
+				setTimeout(function () {
+					btn.classList.remove('rss-copied');
+					btn.classList.remove('rss-error');
+				}, 1500);
+			};
+			fetch(url).then(function (res) {
+				if (!res.ok) { throw new Error('rss ' + res.status); }
+				return res.text();
+			}).then(function (xml) {
+				/* the async clipboard API can throw (e.g. "Document is not
+				   focused" in an embedded webview) — fall back to a hidden
+				   textarea + execCommand, which only needs a selection */
+				function legacyCopy() {
+					var ta = document.createElement('textarea');
+					ta.value = xml;
+					ta.style.position = 'fixed';
+					ta.style.opacity = '0';
+					document.body.appendChild(ta);
+					ta.select();
+					var ok = false;
+					try { ok = document.execCommand('copy'); } catch (err) { ok = false; }
+					document.body.removeChild(ta);
+					return ok;
+				}
+				if (navigator.clipboard && navigator.clipboard.writeText) {
+					try {
+						return navigator.clipboard.writeText(xml);
+					} catch (err) {
+						/* fall through to the legacy path */
+					}
+				}
+				if (!legacyCopy()) {
+					throw new Error('copy failed');
+				}
+			}).then(function () {
+				flash(true);
+				rssToast(btn);
+			}).catch(function () {
+				flash(false);
+			});
+		});
 	})();
 </script>

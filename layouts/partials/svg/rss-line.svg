@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+    <g>
+        <path fill="none" d="M0 0h24v24H0z"/>
+        <!-- the dot and every arc share the center C=(4,20), which lies on the
+             45° diagonal (y = x + 16), so the whole icon is exactly symmetric
+             about that line. Each arc is a 90° quarter-annulus centred on C,
+             from straight-up to straight-right, every arc is 2 units thin, and
+             the gaps are uniform: dot(2.5) → middle inner(7.25) and middle
+             outer(9.25) → outer inner(14) are both 4.75. The outer arc reaches
+             (4,4) / (20,20), so the icon fills the box. -->
+        <circle cx="4" cy="20" r="2.5"/>
+        <path d="M4 10.75A9.25 9.25 0 0 1 13.25 20L11.25 20A7.25 7.25 0 0 0 4 12.75Z"/>
+        <path d="M4 4A16 16 0 0 1 20 20L18 20A14 14 0 0 0 4 6Z"/>
+    </g>
+</svg>

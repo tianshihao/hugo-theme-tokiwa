@@ -10,13 +10,6 @@
 		</a>
 	</li>
 	{{ end }}
-	{{ $rss := .OutputFormats.Get "RSS" }}
-	{{ if not $rss }}{{ $rss = site.Home.OutputFormats.Get "RSS" }}{{ end }}
-	{{ if $rss }}
-	<li>
-		<a href="{{ $rss.RelPermalink }}">RSS</a>
-	</li>
-	{{ end }}
 	{{ end }}
 	{{ if .Site.Params.fuse }}
 	<div id="fastSearch" class="m-0">

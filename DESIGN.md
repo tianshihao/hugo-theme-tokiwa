@@ -69,7 +69,7 @@ taxonomy cards each card shows its divider at the top.
 The site is a horizontal tree, navigated with one right hand:
 
 ```
-Level 1  site nav    (home title first, then Posts/Tags/Categories/Series/About/RSS)
+Level 1  site nav    (home title first, then Posts/Tags/Categories/Series/About)
 Level 2  the page    (posts list, taxonomy term post list, or taxonomy cards)
 Level 3  card titles (tags/categories/series — inside a card)
 
@@ -89,13 +89,21 @@ overview pages (the tags / categories / series waterfalls) navigate cards.
   `Tags` on /tags/).
 - `l` — descend one level (in): nav → the selected nav item's page; card →
   its titles. At a leaf (a post or a title) `l` opens the link.
-- `gg`/`G` — first/last of the current level (nav → home/RSS; cards, titles
+- `gg`/`G` — first/last of the current level (nav → home; cards, titles
   and posts → their own first/last).
 - `Enter` — open / enter the selected item (same as `l` at a leaf).
 - `,`/`.` — previous / next page (home & posts pager).
 - `/` — focus the search box. Leader keys: `gh` `gp` `gt` `gc` `gs`.
 - `Esc`/`Ctrl+C` — exit vim mode. (`body.vim-nav` is purely a class switch; the
   rows keep their original flush layout — no horizontal inset.)
+- **RSS is not in the nav.** It lives in the **aside** as a social-style icon
+  (`layouts/partials/svg/rss-line.svg`, shown via the same `social-follow`
+  group as the other `[params.social]` links). Clicking it is **not a link** —
+  it **copies the feed's XML to the clipboard** (a delegated `[data-rss-copy]`
+  handler in `site-scripts.html` fetches the feed and writes it via
+  `navigator.clipboard`, with a brief teal/red colour flash for
+  success/failure). The feed URL is `site.Home.OutputFormats.Get "RSS"`
+  (`/index.xml`).
 
 ### Vim return — h on a leaf restores where it came from
 
@@ -172,8 +180,8 @@ only source, called from a commit, so "where am I" (the purple) only ever
 appears on a committed page. `h` back to the nav cancels it
 (`navEnter()` → `clearNavCurrent()`): the purple is shown ONLY while IN the
 content, never while navigating the nav.
-RSS / external / feed links are not
-pages — they only highlight, `l`/Enter still opens them. Articles (about) are
+External / feed links are not
+previewable pages — they only highlight, `l`/Enter still opens them. Articles (about) are
 not previewable (the swap is skipped; the nav only highlights and `l`/Enter
 navigates there). On deeper pages (taxonomy term pages) the nav keeps the
 classic behavior: `j`/`k` move the highlight and `l`/Enter navigate there.
@@ -182,8 +190,8 @@ Mouse clicks on the nav behave the same way: on a first-level page, clicking a
 nav link (or the home title) runs the same fetch + swap, so the mouse and vim
 are two inputs on one engine. The click moves the vim nav cursor if it is
 active, updates the purple-red current-page indicator, and blurs the clicked
-link so the indicator shows immediately (matching a real page load). RSS /
-external links and non-previewable targets (articles / 404) fall back to a
+link so the indicator shows immediately (matching a real page load).
+External links and non-previewable targets (articles / 404) fall back to a
 real navigation; clicks from deeper pages navigate normally.
 
 The **g-leader is exactly a mouse click**: `gh`/`gp`/`gt`/`gc`/`gs` resolve
