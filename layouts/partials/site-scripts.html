@@ -1199,17 +1199,19 @@
 			};
 		}
 
-		/* Vertically center the selected card's tag pill on its highlight box.
-		   The pill is the tag label's own (2-line) box — it keeps its natural
-		   size, never stretched — so centering is a pure translate: move the
-		   label so its vertical center lands on the highlight box's center. The
-		   box is the full content between the dividers (see taxMeasureBounds),
-		   so for a 2-line card it is only a few px taller than the pill; for
-		   1-line and 3+-line cards it is taller still, and the same center rule
-		   holds for all of them. The shift is applied to .tag-label (the pill's
-		   container), NOT the <a>: .tag-label's overflow:hidden would clip a
-		   relatively-offset <a> whose background pokes below its box, and the
-		   float keeps its layout space either way (a relative offset never
+		/* Vertically center the selected card's tag pill on its highlight box —
+		   but ONLY while the preview titles stay beside the label (1-2 lines).
+		   The pill is the tag label's own (2-line) box, it keeps its natural
+		   size and is never stretched, so centering is a pure translate: move
+		   the label so its vertical center lands on the highlight box's center.
+		   Once the titles wrap BELOW the label (3+ lines), the box is far taller
+		   than the pill and centering would float the tag name over the titles
+		   below it — so those cards keep the pill on the label in its natural
+		   spot (the pill still uses the same 2-line box as everywhere else; it
+		   just does not translate). The shift is applied to .tag-label (the
+		   pill's container), NOT the <a>: .tag-label's overflow:hidden would
+		   clip a relatively-offset <a> whose background pokes below its box, and
+		   the float keeps its layout space either way (a relative offset never
 		   reflows the titles). Cleared when the card is deselected / vim mode
 		   exits. */
 		function syncTagPill(card, b) {
@@ -1223,6 +1225,15 @@
 			var naturalH = rect.height;         /* pill's natural (unstretched) height */
 			var hlTop = b.top;                  /* highlight top, relative to card top */
 			var hlBottom = cr.height - b.bottom;/* highlight bottom, relative to card top */
+			/* the label here is at its NATURAL position (onSelect reset every
+			   pill's shift before calling this), so comparing the titles' extent
+			   to the label's own box tells us whether the previews run below the
+			   label (3+ lines) or only beside it (1-2 lines) */
+			var titles = card.querySelector('.tag-card-titles');
+			var titlesR = titles ? titles.getBoundingClientRect() : null;
+			if (titlesR && titlesR.bottom > rect.bottom + 1) {
+				return; /* titles wrap below the label — keep the pill on it */
+			}
 			var hlCenter = (hlTop + hlBottom) / 2;
 			var targetTop = hlCenter - naturalH / 2;
 			var shift = targetTop - naturalTop;
