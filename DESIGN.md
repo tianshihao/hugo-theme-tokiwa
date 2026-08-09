@@ -75,8 +75,11 @@ overview pages (the tags / categories / series waterfalls) navigate cards.
 
 - `j`/`k` — move within the current level (nav item, post, card, or title).
   The first `j` or `k` always selects the top item (never wraps to the last).
-- `h` — ascend one level (out): title → card → nav. Returning to the nav
-  highlights the nav item for the page you're on (e.g. `Tags` on /tags/).
+- `h` — ascend one level (out): title → card → nav; from a **leaf** (an
+  article) or a taxonomy **term** page it goes back to the page it came from
+  (a list or the cards) and restores the cursor — see "Vim return" below.
+  Returning to the nav highlights the nav item for the page you're on (e.g.
+  `Tags` on /tags/).
 - `l` — descend one level (in): nav → the selected nav item's page; card →
   its titles. At a leaf (a post or a title) `l` opens the link.
 - `gg`/`G` — first/last of the current level (nav → home/RSS; cards, titles
@@ -87,25 +90,98 @@ overview pages (the tags / categories / series waterfalls) navigate cards.
 - `Esc`/`Ctrl+C` — exit vim mode. (`body.vim-nav` is purely a class switch; the
   rows keep their original flush layout — no horizontal inset.)
 
+### Vim return — h on a leaf restores where it came from
+
+The leaves (articles) and the taxonomy term pages sit one level below a list
+(home / posts / term) or a card (tags / categories / series). Leaving one of
+those (`l`/Enter, or a mouse click on the item) is a **real navigation**, so
+the vim state would be lost. Before leaving, `openActive()` / `taxOpen()` /
+the click handler save a return context — which page (`path`), the list page
+number and the row's link, or the card index (and preview index) — into
+`sessionStorage` (`tokiwa.vimReturn`). The saved `path` is **`effectivePath`**
+(the page actually shown), not `window.location.pathname`: the nav live-preview
+shows home / posts / the taxonomies on a shared URL, so the URL would record
+the wrong page to return to (clicking a home row while /posts/ is the URL used
+to return to /posts/). `effectivePath` is **normalized** (no trailing slash,
+home = `/`) — its initial value is `normalizePath(location.pathname)`, the same
+form `applyPreview` uses, so a saved path always matches the URL form used in
+comparisons. A trailing slash in the saved path silently breaks `h` on a real
+page (e.g. a term page): `returnToSource`/`applyReturnRestore` compare it
+against the slash-less URL, never match, and `returnToSource` then navigates to
+`path + '/'`, i.e. a double-slash URL — the page reloads with the context still
+pending and `h` loops forever. Both functions normalize defensively for that.
+On the target, `h` (`returnToSource()`) navigates back one level.
+**A first-level page (home / posts / tags / categories / series / about) is only
+ever shown inside home — returning to one lands on home (`/`), never on that
+page's own URL**, so those pages don't appear during navigation. The home page
+then loads the saved page's content into the right pane via the same SPA swap
+(`applyReturnRestore()` → `previewNavTo()`), switches to the saved page number,
+re-selects the exact row / card / card-preview that was highlighted, and
+re-enters vim mode. **Only an article carries a saved context** (its parent
+isn't derivable); a **taxonomy term page derives its parent from its own URL**
+(`taxonomyFromTermPath()`: `/tags/c++` → `/tags` + the C++ card via the tag
+link's `href`), so `h` from a term page returns to home with the taxonomy
+overview loaded and the exact card re-selected — no saved context needed. The
+context survives the real navigation but is per-tab and cleared once applied —
+so a later `h` on the same page goes to the nav, not back here. Without a
+context (direct / search / nav navigation) `h` on a leaf keeps the classic
+behavior: enter the nav. Leaving for a different top-level page via the nav
+(`openNavItem()`) clears a pending context, since that navigation supersedes
+the h-back.
+
 ### Nav live-preview (first-level pages)
 
 On a **first-level** page — a page that is exactly one of the nav destinations
 (home / posts / tags / categories / series / about) — the nav is a live
-preview: `j`/`k` in the nav **enters the selected page immediately**, no `l`
-needed. The destination loads with `?nav=1`, and that page re-enters the nav
-and drops the param (`history.replaceState`), so a held or repeated `j`/`k`
-tabs straight through the pages. On those pages `l`/Enter in the nav moves the
-cursor into the main content **and selects its first item** (first card on a
-taxonomy overview, first post row elsewhere — the mirror of `h` selecting the
-current page's nav item); the current page's nav item stays purple-red (the
-template's `text-medium-red-violet-600`), so "where am I" is always visible
-while navigating content. RSS / external / feed links are not
-pages — they only highlight, `l`/Enter still opens them (`navPreview()` guards
-on `.xml` / `http`). On deeper pages (articles, taxonomy term pages) the nav
-keeps the classic behavior: `j`/`k` move the highlight and `l`/Enter navigate
-there. Because this is a real navigation (not an in-place swap), every page
-renders fully — its own one-screen pagination / waterfall / pager — with no
-state to re-initialize.
+preview: `j`/`k`/`gg`/`G` moving the cursor **loads the selected page's main +
+footer into the right pane via fetch**, in place — not a navigation, so the URL
+never moves (every first-level page shares the entry URL, e.g. `/`). Each move
+bumps a `previewRequestId`; a stale response is dropped, so rapid j/k always
+settles on the last selection. The swap re-boots the target's machinery through
+the re-callable modules `oneScreenPage.boot()/.teardown()` (home / posts / term)
+and `taxonomyCards.boot()` (tags / categories / series) — refactored from
+one-shot IIFEs for exactly this — so the paginated list, the pinned footer and
+the card dividers stay correct. Each `oneScreenPage.boot()` starts the list at
+**page 0** (`currentPage = 0`): the paginator must not carry a previous page's
+position across a swap, so home on page 5 loading posts shows posts page 1, not
+page 5 (a later vim-return `restoreCursor()` can still bring back a saved page
+number). The list-cursor config (`currentListConfig()`)
+is re-derived from the shown content (not the URL), so the vim highlight and
+Enter-open follow home vs. the posts archive; and `effectivePath` tracks which
+page is shown so `h` from main returns to that page's nav item. Crucially,
+**j/k/gg/G only preview — they never turn a nav item purple-red**: the purple
+current-page indicator is set only on a commit (`l`/Enter via
+`enterMainContent()`, or a mouse click), never while the cursor is merely
+moving (`updateNavCurrent()` is called from those commits, not from
+`applyPreview()`). On those pages `l`/Enter moves the cursor into the main
+content **and selects its first item** (the mirror of `h` selecting the
+current page's nav item). The template never colours the nav purple (the old
+`{{ if in (Permalink) (URL) }}` class is gone) — `updateNavCurrent()` is the
+only source, called from a commit, so "where am I" (the purple) only ever
+appears on a committed page. `h` back to the nav cancels it
+(`navEnter()` → `clearNavCurrent()`): the purple is shown ONLY while IN the
+content, never while navigating the nav.
+RSS / external / feed links are not
+pages — they only highlight, `l`/Enter still opens them. Articles (about) are
+not previewable (the swap is skipped; the nav only highlights and `l`/Enter
+navigates there). On deeper pages (taxonomy term pages) the nav keeps the
+classic behavior: `j`/`k` move the highlight and `l`/Enter navigate there.
+
+Mouse clicks on the nav behave the same way: on a first-level page, clicking a
+nav link (or the home title) runs the same fetch + swap, so the mouse and vim
+are two inputs on one engine. The click moves the vim nav cursor if it is
+active, updates the purple-red current-page indicator, and blurs the clicked
+link so the indicator shows immediately (matching a real page load). RSS /
+external links and non-previewable targets (articles / 404) fall back to a
+real navigation; clicks from deeper pages navigate normally.
+
+The **g-leader is exactly a mouse click**: `gh`/`gp`/`gt`/`gc`/`gs` resolve
+their route to the matching nav element via `navItemForHref()` (the home title
+is its own first-class item) and call the same shared `openNavItem()` as a
+click — dynamic-load into the right pane on a first-level page (URL never
+moves, purple commits on the target), real navigation otherwise. So every way
+of "selecting" a first-level page — j/k/gg/G preview, `l`/Enter commit, mouse
+click, and the g-leader — is one engine.
 
 The nav also takes priority over the reading view: once `h` has entered the
 nav, `j`/`k`/`gg`/`G` operate on the nav cursor even on a reading page (e.g.
@@ -155,7 +231,7 @@ siblings come from) and `onSelect()` (how the highlight is painted):
 | site nav     | `navItems()` (cached, re-query if empty) | pill             |
 | posts list   | `visibleItems()` (live)                  | measured overlay |
 | cards        | `taxCards()` (live)                      | measured overlay |
-| card previews| `taxPreviews(active card)` (live)        | pill             |
+| card previews| `taxPreviews(active card)` (live)        | — (card box only) |
 
 `move` / `jump` / `enter` / `clear` are shared and cannot drift apart: first
 press starts at the top, edges clamp (an already-at-edge press is a no-op that
@@ -194,6 +270,18 @@ empty article and no cards).
   the box **identical for every card** regardless of content height, and keeps
   the divider lines outside the box. Do not re-introduce card-box centering.
 - Home/posts use the same overlay pattern on `[data-home-post-item]`.
+- **Fonts stay original while moving**: the teal overlay is the only cursor
+  indicator during j/k — element fonts never change colour. The card carries
+  its box AND its tag label carries a teal pill (the second-layer highlight)
+  while the card is selected; the preview TITLE keeps a teal pill while the
+  cursor is on it. Only `l` to the next layer changes things (below).
+- **Only `l` to the NEXT layer turns the PREVIOUS layer's font purple-red**
+  (medium-red-violet, the same as the nav's current-page indicator): nav →
+  content turns the nav item purple (set only by `updateNavCurrent()` on a
+  commit — the template never colours it, see §4); card → previews turns the
+  card's tag label purple-red AND drops its teal pill (a `preview-open` class that `taxDescend()` adds and `taxAscend()` /
+  `exitVim()` remove). Ascending (`h`) restores the label's original font
+  colour and its pill.
 
 ## 6. File map
 
@@ -226,10 +314,12 @@ home-pager. It lives as the baseof default, gated by the shared
 override the block: article → `page-footer` (prev/next + related + disqus, where
 the disqus separator line + container are gated on `disqusShortname` so an
 unconfigured site never shows two stacked `<hr />`s — only the single closing
-line remains), generic list → `pagination`. Taxonomy overview (`terms.html`) and
-404 render nothing (the one-screen condition is false; an *empty* `define
-"footer"` does **not** override a `block` default in Hugo — only a non-empty one
-does, so keep the gating in baseof).
+line remains), generic list → `pagination`, about (`layouts/about/list.html`) →
+a non-empty override rendering nothing — About is a fixed one-screen page with
+**no footer**. Taxonomy overview (`terms.html`) and 404 render nothing (the
+one-screen condition is false; an *empty* `define "footer"` does **not**
+override a `block` default in Hugo — only a non-empty one does, so keep the
+gating in baseof).
 
 The pager's one-screen layout (`body.home-one-screen [data-home-pager]`, in
 baseof) is a 5-column grid — `first`/`prev` on the left, page numbers in the
@@ -244,6 +334,23 @@ lift — the period dots sit on the text baseline while digits rise above it, so
 the dots' ink center is ~0.25em lower; lifting them puts the ellipsis on the
 digits' optical center. The `data-home-pager-hr` top line and the arrow SVGs
 are the design constants — never restyle or move them.
+
+**When the ellipsis appears** (`buildNumberButtons()`): the pager may occupy
+at most `MAX_SLOTS` number slots (including ellipsis placeholders), and the cap
+is **computed from the actual width** (`computeMaxSlots()`, bounded 5–9): the
+pager grid reserves the arrows' columns and gaps, each slot is a 2-digit page
+number plus the 1.25rem gap, so the widest viewport shows the most numbers and
+a narrow one starts collapsing. If the page count is at most `MAX_SLOTS`, every
+number is shown — no ellipsis, ever (turning one number into an ellipsis would
+still leave the same slot count, just with less info). The ellipsis hides
+pages only once there are MORE pages than slots (the trigger is
+`total == MAX_SLOTS + 1`, not `total == MAX_SLOTS`), so a 4-page archive always
+reads `1 2 3 4`. When hidden, first and last are always shown, a window around
+the current page fills the rest, and the window shrinks until everything fits —
+the current page stays visible on every page. The pager's horizontal layout CSS
+lives OUTSIDE the `min-width: 768px` media query (it applies wherever the pager
+is shown), so the page numbers never fall back to the vertical `ul`/`li`
+stacking in a narrow view.
 
 ## 8. Fixed chrome — header & bottom bar never move
 
@@ -275,3 +382,14 @@ height, and `pinBottomRails()` freezes aside + footer as
 (`getBoundingClientRect`), raising the header or resizing the viewport re-fits
 automatically — nothing is hardcoded. A term page's `<h1>` sits above the
 list and simply reduces the available height.
+
+### Article body drops the markdown h1
+
+On article pages the header already shows the title, so the body hides the
+markdown level-1 heading it would otherwise render (`body.is-article
+.c-rich-text h1 { display: none }`). The markdown files are shared with other
+sites and keep their own `#` heading — only this rendering drops it. Per
+request this hides **all** h1 in the body (sections also written with `#` are
+h1 too and are hidden as well); `##`-level headings are untouched. The rule is
+scoped to `.is-article .c-rich-text`, so list / taxonomy / about pages keep
+their own headings.
