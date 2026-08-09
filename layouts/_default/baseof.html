@@ -483,19 +483,44 @@
 			color: #028760;
 		}
 
-		/* While vim mode is on, links don't take pointer events — a cursor
-		   parked over a link can't show its hover under the vim-active
-		   highlight, and a stray click can't be swallowed mid-motion. This is
-		   only transient: the instant the user moves / wheels / clicks,
-		   site-scripts calls exitVim() and the page is fully mouse-driven
-		   again (no vim highlight, hover and clicks work). */
-		body.vim-nav a {
-			pointer-events: none;
+		/* vim mode remembers its state even while the mouse is used: the mouse is
+		   a fully independent input (hover / click work normally), so links are
+		   never pointer-blocked here — a cursor can hover over a link and show
+		   its sweep/color next to the vim-active highlight. */
+
+		/* Fixed-chrome header: on every non-article page the header's sticky
+		   top equals its natural position (--chrome-top), so it never moves
+		   while scrolling and sits at the exact same spot on home / posts /
+		   tags / categories / series. --chrome-top also drives the shell's top
+		   padding, so the natural spot IS that offset — slightly higher than
+		   the old 4rem. */
+		:root {
+			/* header's gap from the viewport top mirrors the aside's gap from
+			   the bottom (--aside-gap), slightly larger, so the top and bottom
+			   chrome are symmetric */
+			--chrome-top: calc(var(--aside-gap) + 6px);
+		}
+		@media (min-width: 768px) {
+			/* the shell's top padding is the header's natural resting spot */
+			body:not(.is-article) [data-home-shell] {
+				padding-top: var(--chrome-top);
+			}
+			/* scrolling pages (tags / categories / series): sticky top = the
+			   natural spot, so the header never moves while scrolling */
+			body:not(.is-article):not(.home-one-screen) [data-home-shell] > header > div {
+				position: sticky;
+				top: var(--chrome-top);
+			}
+			/* one-screen pages (home / posts) never scroll, so the header is
+			   plain static — it sits at --chrome-top and never moves either */
+			body.home-one-screen [data-home-shell] > header > div {
+				position: static;
+			}
 		}
 	</style>
 </head>
 
-<body class="bg-gray-100 text-gray-700 font-sans{{ if $oneScreen }} home-one-screen{{ end }}">
+	<body class="bg-gray-100 text-gray-700 font-sans{{ if $oneScreen }} home-one-screen{{ end }}{{ if .IsPage }} is-article{{ end }}">
 	<div data-home-shell class="p-6 sm:p-10 md:p-16 flex flex-wrap{{ if $oneScreen }} home-one-screen-shell{{ end }}">
 		<header class="w-full md:w-2/5 xl:w-1/2 md:pr-12 lg:pr-20 xl:pr-24 order-1 md:order-1 max-w-2xl">
 			<div
