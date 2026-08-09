@@ -441,21 +441,9 @@
 	     only). Rules whose elements don't exist on a given page are no-ops. */}}
 	<style type="text/css">
 		/* vim j/k list navigation cursor. Drawn as an overlay (::before,
-		   z-index:-1 so it sits behind the text). When vim navigation is active
-		   (body.vim-nav) the rows get a small horizontal inset so the selection
-		   card has visible breathing room on both sides — the one-screen main
-		   column clips at its edges (overflow:hidden), so the highlight cannot
-		   poke past the content; instead the content steps in and the highlight
-		   spans the full column. Non-vim view keeps the original flush layout. */
-		body.vim-nav [data-home-post-item] {
-			padding-left: 14px;
-			padding-right: 14px;
-			transition: padding 0.25s ease;
-		}
-		body.vim-nav [data-home-post-item] [data-home-archive-divider] {
-			margin-left: -14px;
-			margin-right: -14px;
-		}
+		   z-index:-1 so it sits behind the text). The rows keep their original
+		   flush layout when vim navigation is active — no horizontal inset, so
+		   the content never shifts toward the middle. */
 		[data-home-post-item].vim-active {
 			position: relative;
 			z-index: 0;

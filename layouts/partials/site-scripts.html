@@ -8,7 +8,8 @@
 {{ end }}
 
 <script>
-	/* One shared "label" font across the posts year label and the tags drop-cap
+	/* ---- shared label font ------------------------------------------------
+	   One shared "label" font across the posts year label and the tags drop-cap
 	   label. The label glyph should be exactly two lines of the shared list/title
 	   text tall (2 × --list-line-height). We measure the label font's glyph
 	   height-to-font-size ratio once, derive the font-size from it, and publish it
@@ -41,7 +42,8 @@
 		document.documentElement.style.setProperty('--label-font-size', size.toFixed(1) + 'px');
 	}
 
-	/* Shared design values for the taxonomy cards. The content↔divider centering
+	/* ---- taxonomy card design constants ----------------------------------
+	   Shared design values for the taxonomy cards. The content↔divider centering
 	   (align()) and the vim highlight (taxMeasureBounds()) must agree on these,
 	   so they live here as a single source of truth — never redefine them inline. */
 	var TAXONOMY_DESIGN = {
@@ -49,6 +51,12 @@
 		PAD: 2   /* vim highlight breathing room beyond the content's own GAP */
 	};
 
+	/* ---- home & posts one-screen pagination ------------------------------
+	   Home and posts fit their list to a single screen: buildPagesByHeight()
+	   groups items into pages by available height, buildNumberButtons() rebuilds
+	   the pager, applyPostsHeightLimit() caps the list's height, and
+	   pinBottomRails() freezes the aside + footer to the viewport bottom. Only
+	   runs on body.home-one-screen; every other page returns immediately. */
 	(function () {
 		var body = document.body;
 		if (!body || !body.classList.contains('home-one-screen')) {
@@ -571,7 +579,8 @@
 		scheduleRebuild();
 	})();
 
-	/* Taxonomy cards (tags waterfall + series/categories list): keep each card's
+	/* ---- taxonomy cards: divider centering & long-tag fit ----------------
+	   Taxonomy cards (tags waterfall + series/categories list): keep each card's
 	   content vertically centered between its divider and the next card's divider
 	   (uniform text→divider gap = GAP on both sides), and center a single line of
 	   titles vertically on the big tag label.
@@ -778,7 +787,8 @@
 		}
 	})();
 
-	/* Vim-style navigation:
+	/* ---- vim navigation ----------------------------------------------------
+	   Vim-style navigation:
 	   - g as a leader, then h/p/t/c/s to jump to home / posts / tags /
 	     categories / series; gg jumps to the first list row
 	   - j / k move a highlight through the post list (home + posts), like
@@ -862,7 +872,8 @@
 			return null;
 		}
 
-		/* A generic selection cursor: the same engine drives the site nav, the
+		/* ---- unified cursor engine (makeCursor) ----------------------------
+		   A generic selection cursor: the same engine drives the site nav, the
 		   posts/home list, the taxonomy cards and the card previews — four panes
 		   that can never drift apart. Each pane is a cursor whose selectable
 		   siblings come from items() and whose highlight is painted by
@@ -917,7 +928,10 @@
 				if (next < 0) { next = 0; }
 				if (next > list.length - 1) { next = list.length - 1; }
 				if (current && next === idx) {
-					return; /* already at an edge; don't re-scroll */
+					/* already at the edge, pressing outward: keep the selection
+					   pinned but let the page glide the rest of the way */
+					if (cfg.onEdge) { cfg.onEdge(step, current); }
+					return;
 				}
 				select(list[next]);
 			}
@@ -970,6 +984,15 @@
 				if (card.scrollIntoView) {
 					card.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
 				}
+			},
+			/* at the first card pressing k / last card pressing j the selection
+			   is pinned at the edge, but the waterfall keeps gliding to the page
+			   top / bottom (smooth), so the remaining distance is covered */
+			onEdge: function (step) {
+				window.scrollTo({
+					top: step < 0 ? 0 : document.documentElement.scrollHeight,
+					behavior: 'smooth'
+				});
 			}
 		});
 		var previewCursor = makeCursor({
@@ -1198,13 +1221,14 @@
 		var readSpeed = 1;       /* current speed multiplier (1 = j/k, READ_FAST = d/u) */
 		var readFinishingTap = false;
 
-		/* a single article page: <article> is present but there is no post list
-		   and no taxonomy cards to navigate (home / posts / tags / series all
-		   carry one of those) */
+		/* a single article page — the only "reading" page. The check keys off
+		   .c-rich-text (unique to single.html): terms.html / list.html / 404
+		   also render an <article>, but those are content wrappers, not posts.
+		   On a terms page with no terms (e.g. /categories/ when nothing is
+		   categorized) that empty <article> must not flip us into reading
+		   mode, or j/k would scroll instead of navigating the nav / cards. */
 		function isReading() {
-			return !!document.querySelector('article')
-				&& !document.querySelector('[data-home-post-item]')
-				&& !document.querySelector('[data-taxonomy-cards] > section');
+			return !!document.querySelector('article .c-rich-text');
 		}
 
 		function readStart(dir, mult) {
@@ -1268,8 +1292,12 @@
 			leaderTimer = null;
 		}
 
-		/* only the currently-rendered items (hidden home-fit-hidden pages and
-		   draft rows are display:none → offsetParent is null, so skip them) */
+		/* ---- posts/home list cursor & vim mode ----------------------------
+		   visibleItems() / listCursor (the unified cursor over the posts & home
+		   rows) plus enterVim / exitVim — the vim-mode class switch, the
+		   :focus blur, and the motion-stop when leaving. Only the
+		   currently-rendered items are listed (hidden home-fit-hidden pages and
+		   draft rows are display:none → offsetParent is null, so skip them). */
 		function visibleItems() {
 			return Array.prototype.slice
 				.call(document.querySelectorAll('[data-home-post-item]'))
@@ -1307,8 +1335,7 @@
 		/* Enter list navigation: switch the rows to the inset "selection mode".
 		   Also drop any :focus the mouse/keyboard left on a link — otherwise its
 		   focus color/underline (same family as the hover tone) would fight the
-		   vim-active highlight. The body.vim-nav a { pointer-events: none } rule
-		   in baseof kills the :hover state at the same time. */
+		   vim-active highlight. */
 		function enterVim() {
 			document.body.classList.add('vim-nav');
 			if (document.activeElement && document.activeElement.blur) {
@@ -1334,7 +1361,7 @@
 		   cadence (one item every LIST_REPEAT_MS), so there is no gap after the
 		   first move and releasing stops instantly. OS repeats (e.repeat) are
 		   ignored — they would only duplicate the loop. */
-		var LIST_REPEAT_MS = 120; /* per-item cadence while j/k is held */
+		var LIST_REPEAT_MS = 180; /* per-item cadence while j/k is held (midpoint of the original 120 and the halved 240) */
 		var listDir = 0;          /* 0 = idle, +1 down, -1 up */
 		var listRaf = 0;
 		var listAcc = 0;
@@ -1393,6 +1420,12 @@
 			}
 		}
 
+		/* ---- vim input dispatch (keyboard & mouse) ------------------------
+		   The global keydown / keyup / resize handlers that run the engine:
+		   IME-safe key capture (e.isComposing / keyCode 229), leader keys,
+		   j/k/G/h/l/Enter/gg, ,/. pager, / search, Esc / Ctrl+C exit. The mouse
+		   is fully independent — vim state is remembered, no pointer event
+		   exits it. */
 		window.addEventListener('keydown', function (e) {
 			var t = e.target;
 			var tag = t && t.tagName ? t.tagName.toLowerCase() : '';
@@ -1572,22 +1605,6 @@
 				listRepeatStop();
 			}
 		}, true);
-
-		/* The mouse takes over from vim: any real pointer interaction (move,
-		   wheel, click) ends vim mode and drops every highlight, so the two
-		   input systems never fight. body.vim-nav a { pointer-events: none }
-		   keeps a cursor parked over a link from showing its hover under the
-		   vim-active highlight, but that block is only transient — the instant
-		   the user touches the mouse, exitVim() runs and the page is fully
-		   mouse-driven again (hover, clicks, wheel all work). */
-		function mouseExitsVim() {
-			if (document.body.classList.contains('vim-nav')) {
-				exitVim();
-			}
-		}
-		window.addEventListener('mousemove', mouseExitsVim, true);
-		window.addEventListener('wheel', mouseExitsVim, true);
-		window.addEventListener('mousedown', mouseExitsVim, true);
 
 		/* keep the highlight bounds in sync when the window is resized */
 		window.addEventListener('resize', function () {
