@@ -482,6 +482,16 @@
 			border-radius: 3px;
 			color: #028760;
 		}
+
+		/* While vim mode is on, links don't take pointer events — a cursor
+		   parked over a link can't show its hover under the vim-active
+		   highlight, and a stray click can't be swallowed mid-motion. This is
+		   only transient: the instant the user moves / wheels / clicks,
+		   site-scripts calls exitVim() and the page is fully mouse-driven
+		   again (no vim highlight, hover and clicks work). */
+		body.vim-nav a {
+			pointer-events: none;
+		}
 	</style>
 </head>
 

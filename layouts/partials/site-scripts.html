@@ -798,9 +798,6 @@
 			s: '/series/'       /* series */
 		};
 
-		/* j/k list navigation state */
-		var activeItem = null;
-
 		/* The home and posts lists render rows with different shapes, so the
 		   content a row's selection card should wrap — and the link Enter opens
 		   — differ per page. That detail is captured once here, as a small
@@ -865,6 +862,93 @@
 			return null;
 		}
 
+		/* A generic selection cursor: the same engine drives the site nav, the
+		   posts/home list, the taxonomy cards and the card previews — four panes
+		   that can never drift apart. Each pane is a cursor whose selectable
+		   siblings come from items() and whose highlight is painted by
+		   onSelect(); move / jump / enter / clear are shared:
+		     - move(step)   first press starts at the top; edges clamp; an
+		                    already-at-edge press is a no-op (no re-scroll)
+		     - jump(which)  first / last
+		     - enter()      select the item initialIndex() picks (nav: the item
+		                    for the current page; elsewhere: the top)
+		     - clear()      drop the highlight (and leave the pane)
+		   cache: true keeps the item list once (nav never changes), re-querying
+		   only when it comes back empty (matches the old navLinks caching). */
+		function makeCursor(cfg) {
+			var current = null;
+			var cache = [];
+			var cached = false;
+
+			function items() {
+				if (cfg.cache) {
+					if (!cached || cache.length === 0) {
+						cache = cfg.items();
+						cached = true;
+					}
+					return cache;
+				}
+				return cfg.items();
+			}
+
+			function select(item) {
+				if (current) {
+					current.classList.remove('vim-active');
+				}
+				current = item;
+				item.classList.add('vim-active');
+				if (cfg.onSelect) {
+					cfg.onSelect(item);
+				}
+			}
+
+			function move(step) {
+				var list = items();
+				if (!list.length) {
+					return;
+				}
+				var idx = current ? list.indexOf(current) : -1;
+				var next;
+				if (idx === -1) {
+					next = 0; /* no selection yet: always start at the top */
+				} else {
+					next = idx + step;
+				}
+				if (next < 0) { next = 0; }
+				if (next > list.length - 1) { next = list.length - 1; }
+				if (current && next === idx) {
+					return; /* already at an edge; don't re-scroll */
+				}
+				select(list[next]);
+			}
+
+			function jump(which) {
+				var list = items();
+				if (!list.length) {
+					return;
+				}
+				select(list[which === 'first' ? 0 : list.length - 1]);
+			}
+
+			function enter() {
+				var list = items();
+				if (!list.length) {
+					return;
+				}
+				select(list[cfg.initialIndex ? cfg.initialIndex() : 0]);
+			}
+
+			function clear() {
+				if (current) {
+					current.classList.remove('vim-active');
+					current = null;
+				}
+			}
+
+			return { current: function () { return current; }, items: items,
+				select: select, move: move, jump: jump, enter: enter, clear: clear };
+		}
+
 		/* ---- taxonomy card navigation ---------------------------------------
 		   All three taxonomy pages (tags / categories / series) render the same
 		   card markup from terms.html; tags adds the two-column .waterfall, the
@@ -876,8 +960,30 @@
 		   gg / G jump to the first / last card.
 		   [data-taxonomy-cards] > section covers every card on all three pages,
 		   so the same navigation just works on tags, categories and series. */
-		var taxActiveCard = null;
-		var taxActivePreview = null;
+		var cardCursor = makeCursor({
+			/* cards: live item list; measured divider-rhythm overlay */
+			items: taxCards,
+			onSelect: function (card) {
+				var b = taxMeasureBounds(card);
+				card.style.setProperty('--hl-top', b.top + 'px');
+				card.style.setProperty('--hl-bottom', b.bottom + 'px');
+				if (card.scrollIntoView) {
+					card.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+				}
+			}
+		});
+		var previewCursor = makeCursor({
+			/* previews inside the active card: pill highlight */
+			items: function () {
+				var card = cardCursor.current();
+				return card ? taxPreviews(card) : [];
+			},
+			onSelect: function (link) {
+				if (link.scrollIntoView) {
+					link.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+				}
+			}
+		});
 
 		function taxCards() {
 			return Array.prototype.slice.call(document.querySelectorAll('[data-taxonomy-cards] > section'))
@@ -887,17 +993,6 @@
 		function taxPreviews(card) {
 			return Array.prototype.slice.call(card.querySelectorAll('.tag-card-titles > a'))
 				.filter(function (el) { return el.offsetParent !== null; });
-		}
-
-		function taxClearActive() {
-			if (taxActiveCard) {
-				taxActiveCard.classList.remove('vim-active');
-				taxActiveCard = null;
-			}
-			if (taxActivePreview) {
-				taxActivePreview.classList.remove('vim-active');
-				taxActivePreview = null;
-			}
 		}
 
 		function taxMeasureBounds(card) {
@@ -944,122 +1039,35 @@
 			};
 		}
 
-		function taxSetCard(card) {
-			taxClearActive();
-			taxActiveCard = card;
-			card.classList.add('vim-active');
-			var b = taxMeasureBounds(card);
-			card.style.setProperty('--hl-top', b.top + 'px');
-			card.style.setProperty('--hl-bottom', b.bottom + 'px');
-			if (card.scrollIntoView) {
-				card.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
-			}
-		}
-
-		function taxSetPreview(link) {
-			if (taxActivePreview) {
-				taxActivePreview.classList.remove('vim-active');
-			}
-			taxActivePreview = link;
-			link.classList.add('vim-active');
-			if (link.scrollIntoView) {
-				link.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
-			}
-		}
-
-		function taxMoveCard(step) {
-			var cards = taxCards();
-			if (!cards.length) {
-				return;
-			}
-			var idx = taxActiveCard ? cards.indexOf(taxActiveCard) : -1;
-			var next;
-			if (idx === -1) {
-				/* no selection yet: always start at the top card, whether the
-				   first key was j or k (same as the posts list) */
-				next = 0;
-			} else {
-				next = idx + step;
-			}
-			if (next < 0) { next = 0; }
-			if (next > cards.length - 1) { next = cards.length - 1; }
-			if (taxActiveCard && next === idx) {
-				return;
-			}
-			taxSetCard(cards[next]);
-		}
-
-		function taxMovePreview(step) {
-			if (!taxActiveCard) {
-				return;
-			}
-			var previews = taxPreviews(taxActiveCard);
-			if (!previews.length) {
-				return;
-			}
-			var idx = taxActivePreview ? previews.indexOf(taxActivePreview) : -1;
-			var next;
-			if (idx === -1) {
-				/* no selection yet: always start at the top title, j or k */
-				next = 0;
-			} else {
-				next = idx + step;
-			}
-			if (next < 0) { next = 0; }
-			if (next > previews.length - 1) { next = previews.length - 1; }
-			if (taxActivePreview && next === idx) {
-				return;
-			}
-			taxSetPreview(previews[next]);
-		}
-
-		/* j/k moves previews when descended, otherwise cards */
-		function taxMove(step) {
-			if (taxActivePreview) {
-				taxMovePreview(step);
-			} else {
-				taxMoveCard(step);
-			}
-		}
-
-		function taxJump(which) {
-			if (taxActivePreview) {
-				/* inside a card: gg/G jump the card's titles */
-				var previews = taxPreviews(taxActiveCard);
-				if (previews.length) {
-					taxSetPreview(which === 'first' ? previews[0] : previews[previews.length - 1]);
-				}
-				return;
-			}
-			/* at card level: gg/G jump the cards */
-			var cards = taxCards();
-			if (cards.length) {
-				taxSetCard(which === 'first' ? cards[0] : cards[cards.length - 1]);
-			}
-		}
+		/* taxSetCard / taxSetPreview / taxMoveCard / taxMovePreview / taxMove /
+		   taxJump are gone — cardCursor and previewCursor above are the shared
+		   move/jump engine; activeCursor() picks the right pane. */
 
 		function taxDescend() {
-			if (!taxActiveCard) {
+			var card = cardCursor.current();
+			if (!card) {
 				return;
 			}
-			var previews = taxPreviews(taxActiveCard);
+			var previews = taxPreviews(card);
 			if (previews.length) {
-				taxSetPreview(previews[0]);
+				previewCursor.select(previews[0]); /* keeps the card highlighted */
 			}
 		}
 
 		function taxAscend() {
-			if (taxActiveCard) {
-				taxSetCard(taxActiveCard); /* clears the preview, keeps the card */
+			var card = cardCursor.current();
+			if (card) {
+				previewCursor.clear();   /* drop the preview, keep the card */
+				cardCursor.select(card); /* re-measure + re-scroll the card */
 			}
 		}
 
 		function taxOpen() {
 			var link;
-			if (taxActivePreview) {
-				link = taxActivePreview;
-			} else if (taxActiveCard) {
-				link = taxActiveCard.querySelector('[data-home-tag-name] a');
+			if (previewCursor.current()) {
+				link = previewCursor.current();
+			} else if (cardCursor.current()) {
+				link = cardCursor.current().querySelector('[data-home-tag-name] a');
 			}
 			if (link && link.href) {
 				window.location.href = link.href;
@@ -1067,10 +1075,11 @@
 		}
 
 		function taxExit() {
-			if (taxActivePreview) {
+			if (previewCursor.current()) {
 				taxAscend();
 			} else {
-				taxClearActive();
+				cardCursor.clear();
+				previewCursor.clear();
 				exitVim();
 			}
 		}
@@ -1082,8 +1091,20 @@
 		     preview level     → h ascends out of the card
 		     nav               → l returns to the list
 		   j/k move within whichever pane has focus; Enter opens; gg/G jump. */
-		var navLinks = [];
-		var navActiveIndex = -1;
+		var navCursor = makeCursor({
+			/* site nav: item list cached on first entry; the initial item is the
+			   one for the page we're on (currentNavIndex); pill highlight */
+			cache: true,
+			items: navItems,
+			initialIndex: function () {
+				return currentNavIndex(navCursor.items());
+			},
+			onSelect: function (a) {
+				if (a.scrollIntoView) {
+					a.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+				}
+			}
+		});
 
 		function navItems() {
 			/* the home/title link ("笔记本子") is the first nav item, followed by
@@ -1107,11 +1128,11 @@
 		/* the nav item for the page we're on: exact or prefix match on the path
 		   (e.g. /tags/ and /tags/c++ both map to Tags), so h always returns to
 		   the highlighted item for the current page. Falls back to home. */
-		function currentNavIndex() {
+		function currentNavIndex(list) {
 			var path = window.location.pathname.replace(/\/+$/, '') || '/';
 			var best = 0;
 			var bestLen = -1;
-			navLinks.forEach(function (a, i) {
+			list.forEach(function (a, i) {
 				var href = (a.getAttribute('href') || '').split('#')[0].replace(/\/+$/, '') || '/';
 				var matched = href === '/' ? path === '/' : (path === href || path.indexOf(href + '/') === 0);
 				if (matched && href.length > bestLen) {
@@ -1123,65 +1144,29 @@
 		}
 
 		function inNav() {
-			return navActiveIndex >= 0;
-		}
-
-		function navPaint() {
-			navLinks.forEach(function (a, i) {
-				a.classList.toggle('vim-active', i === navActiveIndex);
-			});
+			return navCursor.current() !== null;
 		}
 
 		function navEnter() {
-			if (!navLinks.length) {
-				navLinks = navItems();
-			}
-			if (!navLinks.length) {
+			if (!navCursor.items().length) {
 				return;
 			}
 			enterVim();
-			clearActive();
-			taxClearActive();
-			navActiveIndex = currentNavIndex();
-			navPaint();
-			navLinks[navActiveIndex].scrollIntoView({ block: 'nearest', behavior: 'smooth' });
-		}
-
-		function navMove(step) {
-			var n = navLinks.length;
-			if (!n || navActiveIndex < 0) {
-				return;
-			}
-			var next = navActiveIndex + step;
-			if (next < 0) { next = 0; }
-			if (next > n - 1) { next = n - 1; }
-			if (next === navActiveIndex) {
-				return;
-			}
-			navActiveIndex = next;
-			navPaint();
-			navLinks[next].scrollIntoView({ block: 'nearest', behavior: 'smooth' });
-		}
-
-		function navJump(which) {
-			if (!navLinks.length) {
-				return;
-			}
-			navActiveIndex = which === 'first' ? 0 : navLinks.length - 1;
-			navPaint();
-			navLinks[navActiveIndex].scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+			listCursor.clear();   /* leave the list / card / preview panes */
+			cardCursor.clear();
+			previewCursor.clear();
+			navCursor.enter();    /* select the nav item for this page */
 		}
 
 		function navLeave() {
-			navLinks.forEach(function (a) { a.classList.remove('vim-active'); });
-			navActiveIndex = -1;
+			navCursor.clear();
 		}
 
 		/* l / Enter from the nav: "enter" the selected nav item. If it's the page
 		   we're already on, just return to its content (no reload); otherwise
 		   navigate to it. */
 		function navOpen() {
-			var a = navLinks[navActiveIndex];
+			var a = navCursor.current();
 			if (!a) {
 				return;
 			}
@@ -1291,91 +1276,120 @@
 				.filter(function (el) { return el.offsetParent !== null; });
 		}
 
-		function clearActive() {
-			if (activeItem) {
-				activeItem.classList.remove('vim-active');
-				activeItem = null;
+		var listCursor = makeCursor({
+			/* posts / home list: live visible rows; measured overlay highlight */
+			items: visibleItems,
+			onSelect: function (item) {
+				var b = measureBounds(item);
+				item.style.setProperty('--hl-top', b.top + 'px');
+				item.style.setProperty('--hl-bottom', b.bottom + 'px');
+				if (item.scrollIntoView) {
+					item.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+				}
 			}
-		}
+		});
 
 		/* Leave vim list navigation: drop every highlight (list row, taxonomy
 		   card/preview, site nav) and the body.vim-nav class, so the layout
 		   animates back to the original flush state. */
 		function exitVim() {
-			clearActive();
-			taxClearActive();
-			navLeave();
+			/* leaving keyboard mode also stops any in-flight motion (a j/k hold
+			   or a reading scroll), so the next move() can't re-highlight */
+			listRepeatStop();
+			readStop();
+			listCursor.clear();
+			cardCursor.clear();
+			previewCursor.clear();
+			navCursor.clear();
 			document.body.classList.remove('vim-nav');
 		}
 
-		/* Enter list navigation: switch the rows to the inset "selection mode". */
+		/* Enter list navigation: switch the rows to the inset "selection mode".
+		   Also drop any :focus the mouse/keyboard left on a link — otherwise its
+		   focus color/underline (same family as the hover tone) would fight the
+		   vim-active highlight. The body.vim-nav a { pointer-events: none } rule
+		   in baseof kills the :hover state at the same time. */
 		function enterVim() {
 			document.body.classList.add('vim-nav');
-		}
-
-		function setActive(item) {
-			clearActive();
-			activeItem = item;
-			item.classList.add('vim-active');
-
-			/* Publish the content bounds as CSS custom properties that the
-			   ::before overlay consumes, so every row's highlight is identical. */
-			var b = measureBounds(item);
-			item.style.setProperty('--hl-top', b.top + 'px');
-			item.style.setProperty('--hl-bottom', b.bottom + 'px');
-
-			if (item.scrollIntoView) {
-				item.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
-			}
-		}
-
-		function move(step) {
-			var items = visibleItems();
-			if (!items.length) {
-				return;
-			}
-			var idx = activeItem ? items.indexOf(activeItem) : -1;
-			var next;
-			if (idx === -1) {
-				/* no selection yet: always start at the top row, whether the
-				   first key was j or k */
-				next = 0;
-			} else {
-				next = idx + step;
-			}
-			if (next < 0) {
-				next = 0;
-			}
-			if (next > items.length - 1) {
-				next = items.length - 1;
-			}
-			if (activeItem && next === idx) {
-				return; /* already at an edge; don't re-scroll */
-			}
-			setActive(items[next]);
-		}
-
-		function goToFirst() {
-			var items = visibleItems();
-			if (items.length) {
-				setActive(items[0]);
-			}
-		}
-
-		function goToLast() {
-			var items = visibleItems();
-			if (items.length) {
-				setActive(items[items.length - 1]);
+			if (document.activeElement && document.activeElement.blur) {
+				document.activeElement.blur();
 			}
 		}
 
 		function openActive() {
-			if (!activeItem) {
+			var item = listCursor.current();
+			if (!item) {
 				return;
 			}
-			var link = findOpenLink(activeItem);
+			var link = findOpenLink(item);
 			if (link) {
 				window.location.href = link.href;
+			}
+		}
+
+		/* ---- list repeat: holding j/k inside a list (nav / posts / taxonomy)
+		   The OS fires the first keydown instantly, then waits ~500ms before its
+		   repeats — the "first move, then stall" the user felt. Like the reading
+		   view, the hold is driven by our own rAF accumulator at a constant
+		   cadence (one item every LIST_REPEAT_MS), so there is no gap after the
+		   first move and releasing stops instantly. OS repeats (e.repeat) are
+		   ignored — they would only duplicate the loop. */
+		var LIST_REPEAT_MS = 120; /* per-item cadence while j/k is held */
+		var listDir = 0;          /* 0 = idle, +1 down, -1 up */
+		var listRaf = 0;
+		var listAcc = 0;
+		var listLast = 0;
+
+		/* the pane under the cursor at any moment: nav → card preview → cards →
+		   list (preview implies a card, which implies a taxonomy page) */
+		function activeCursor() {
+			if (inNav()) {
+				return navCursor;
+			}
+			if (previewCursor.current()) {
+				return previewCursor;
+			}
+			if (isTaxonomy()) {
+				return cardCursor;
+			}
+			return listCursor;
+		}
+
+		function listMove(step) {
+			activeCursor().move(step);
+		}
+
+		function listLoop(now) {
+			if (listDir === 0) {
+				listRaf = 0;
+				return;
+			}
+			var dt = listLast ? Math.min(100, now - listLast) : 16;
+			listLast = now;
+			listAcc += dt;
+			if (listAcc >= LIST_REPEAT_MS) {
+				listAcc = 0;
+				listMove(listDir);
+			}
+			listRaf = requestAnimationFrame(listLoop);
+		}
+
+		function listRepeatStart(step) {
+			listDir = step;
+			listAcc = 0;
+			listLast = 0;
+			if (!listRaf) {
+				listRaf = requestAnimationFrame(listLoop);
+			}
+		}
+
+		function listRepeatStop() {
+			listDir = 0;
+			listAcc = 0;
+			listLast = 0;
+			if (listRaf) {
+				cancelAnimationFrame(listRaf);
+				listRaf = 0;
 			}
 		}
 
@@ -1417,12 +1431,8 @@
 					enterVim();
 					if (isReading()) {
 						readScrollTo('top');
-					} else if (inNav()) {
-						navJump('first');
-					} else if (isTaxonomy()) {
-						taxJump('first');
 					} else {
-						goToFirst();
+						activeCursor().jump('first');
 					}
 					return;
 				}
@@ -1463,12 +1473,14 @@
 					}
 					/* OS repeats add nothing — the loop keeps the same constant
 					   velocity, so there is no second tap and no pause */
-				} else if (inNav()) {
-					navMove(step);
-				} else if (isTaxonomy()) {
-					taxMove(step);
-				} else {
-					move(step);
+				} else if (!e.repeat) {
+					/* list contexts (nav / posts / taxonomy): the first press
+					   moves one item, then the rAF loop keeps stepping at a
+					   constant cadence while the key is held — no OS-repeat gap.
+					   OS repeats (e.repeat) are ignored: they only duplicate
+					   the loop. */
+					listMove(step);
+					listRepeatStart(step);
 				}
 			} else if ((key === 'd' || key === 'u') && isReading()) {
 				/* fast scroll inside the article: d = down, u = up, at READ_FAST × j/k */
@@ -1482,23 +1494,19 @@
 				enterVim();
 				if (isReading()) {
 					readScrollTo('bottom');
-				} else if (inNav()) {
-					navJump('last');
-				} else if (isTaxonomy()) {
-					taxJump('last');
 				} else {
-					goToLast();
+					activeCursor().jump('last');
 				}
 			} else if (key === 'l') { /* right / in: nav → page, card → previews, leaf → open */
 				e.preventDefault();
 				enterVim();
 				if (inNav()) {
 					navOpen();
-				} else if (isTaxonomy() && taxActiveCard && !taxActivePreview) {
+				} else if (isTaxonomy() && cardCursor.current() && !previewCursor.current()) {
 					taxDescend();
-				} else if (isTaxonomy() && taxActivePreview) {
+				} else if (isTaxonomy() && previewCursor.current()) {
 					taxOpen(); /* leaf: open the preview */
-				} else if (activeItem) {
+				} else if (listCursor.current()) {
 					openActive(); /* leaf: open the post */
 				}
 			} else if (key === 'h') { /* left / out: preview → card, list/card → nav */
@@ -1506,7 +1514,7 @@
 				enterVim();
 				if (inNav()) {
 					/* already at the leftmost pane */
-				} else if (isTaxonomy() && taxActivePreview) {
+				} else if (isTaxonomy() && previewCursor.current()) {
 					taxAscend();
 				} else {
 					navEnter();
@@ -1532,7 +1540,7 @@
 					exitVim();
 					search.focus();
 				}
-			} else if (key === 'enter' && (activeItem || isTaxonomy() || inNav())) {
+			} else if (key === 'enter' && (listCursor.current() || isTaxonomy() || inNav())) {
 				e.preventDefault();
 				if (inNav()) {
 					navOpen();
@@ -1554,24 +1562,44 @@
 		}, true); /* capture phase: catch keys even if an inner element stops them */
 
 		/* releasing a scroll key stops the reading-view scroll (or starts the tap
-		   glide); covers j/k/d/u and their shifted variants */
+		   glide) and stops the list j/k repeat; covers j/k/d/u and their shifted
+		   variants */
 		window.addEventListener('keyup', function (e) {
 			var k = e.key;
 			if (k === 'j' || k === 'k' || k === 'J' || k === 'K' ||
 				k === 'd' || k === 'D' || k === 'u' || k === 'U') {
 				readStop();
+				listRepeatStop();
 			}
 		}, true);
 
+		/* The mouse takes over from vim: any real pointer interaction (move,
+		   wheel, click) ends vim mode and drops every highlight, so the two
+		   input systems never fight. body.vim-nav a { pointer-events: none }
+		   keeps a cursor parked over a link from showing its hover under the
+		   vim-active highlight, but that block is only transient — the instant
+		   the user touches the mouse, exitVim() runs and the page is fully
+		   mouse-driven again (hover, clicks, wheel all work). */
+		function mouseExitsVim() {
+			if (document.body.classList.contains('vim-nav')) {
+				exitVim();
+			}
+		}
+		window.addEventListener('mousemove', mouseExitsVim, true);
+		window.addEventListener('wheel', mouseExitsVim, true);
+		window.addEventListener('mousedown', mouseExitsVim, true);
+
 		/* keep the highlight bounds in sync when the window is resized */
 		window.addEventListener('resize', function () {
-			if (activeItem) {
-				setActive(activeItem);
+			var item = listCursor.current();
+			if (item) {
+				listCursor.select(item);
 			}
-			if (taxActiveCard) {
-				var b = taxMeasureBounds(taxActiveCard);
-				taxActiveCard.style.setProperty('--hl-top', b.top + 'px');
-				taxActiveCard.style.setProperty('--hl-bottom', b.bottom + 'px');
+			var card = cardCursor.current();
+			if (card) {
+				var b = taxMeasureBounds(card);
+				card.style.setProperty('--hl-top', b.top + 'px');
+				card.style.setProperty('--hl-bottom', b.bottom + 'px');
 			}
 		});
 	})();

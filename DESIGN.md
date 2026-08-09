@@ -90,6 +90,45 @@ The model is the same as vim-like file managers (ranger / yazi) and TUI apps:
 `j`/`k` siblings, `h` parent, `l` child, `Enter` open — a deliberately familiar
 mental model for vim users.
 
+Vim mode yields to the mouse: keyboard and mouse are two input systems that
+never fight. While `body.vim-nav` is on, `body.vim-nav a { pointer-events:
+none }` keeps a cursor parked over a link from showing its hover under the
+`vim-active` highlight, and `enterVim()` blurs the focused element so a
+previously clicked link's `:focus` tone can't linger. The block is only
+transient — any real pointer interaction (`mousemove` / `wheel` / `mousedown`)
+calls `exitVim()` and returns the page to fully mouse-driven: the hover sweep,
+color change and clicks all work again and every highlight clears. `Esc` /
+`Ctrl+C` exits the same way.
+
+Holding `j`/`k` in a list (nav / posts / taxonomy) advances the selection at a
+constant cadence — one item every `LIST_REPEAT_MS = 120ms` — driven by a rAF
+accumulator, not the OS key repeat (which would stall ~500ms after the first
+move). The first press moves one item immediately, then the loop keeps stepping
+until release, which stops instantly. Inside an article the hold is a constant
+velocity instead (see below), so a list is item-to-item and an article is
+pixel-by-pixel.
+
+Every level's selectable siblings are either a **list** (nav links, posts rows,
+card titles) or a **card** (the taxonomy waterfall). That single-level model is
+the code, not just the design: all four panes run the **same cursor engine**
+(`makeCursor` in `site-scripts.html`), differing only in `items()` (where the
+siblings come from) and `onSelect()` (how the highlight is painted):
+
+| pane         | items()                                  | highlight        |
+|--------------|------------------------------------------|------------------|
+| site nav     | `navItems()` (cached, re-query if empty) | pill             |
+| posts list   | `visibleItems()` (live)                  | measured overlay |
+| cards        | `taxCards()` (live)                      | measured overlay |
+| card previews| `taxPreviews(active card)` (live)        | pill             |
+
+`move` / `jump` / `enter` / `clear` are shared and cannot drift apart: first
+press starts at the top, edges clamp (an already-at-edge press is a no-op that
+doesn't re-scroll), `gg`/`G` jump first/last. `activeCursor()` picks the pane
+(nav → card preview → cards → list). The only custom bits left are the pane
+transitions: `h` enters the nav (selecting the current page's item), `l`
+descends into a card's previews, `h` ascends back to the card (preview cleared,
+card re-selected), and `exitVim()` clears all four panes.
+
 A single article (reached by opening a list item) is the deepest node — it has
 no list, so `j`/`k` become smooth scrolling instead of item movement, modelled
 as a car at constant velocity from the very first frame (the first movement is
