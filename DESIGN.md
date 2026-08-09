@@ -279,6 +279,13 @@ empty article and no cards).
   its box AND its tag label carries a teal pill (the second-layer highlight)
   while the card is selected; the preview TITLE keeps a teal pill while the
   cursor is on it. Only `l` to the next layer changes things (below).
+- **The pill is as tall as the card's highlight box** (`syncTagPill()`): the
+  box spans the whole content between the dividers, but the label alone was
+  only the 2-line drop-cap's height, so its bottom fell short. On selecting a
+  card the JS stretches the label link to the box (inline-flex keeps the
+  drop-cap centered) and aligns its top edge to the box's top; deselection and
+  vim-exit reset it. So whether the preview titles wrap to one line or several,
+  the pill always matches the highlight exactly.
 - **Only `l` to the NEXT layer turns the PREVIOUS layer's font purple-red**
   (medium-red-violet, the same as the nav's current-page indicator): nav →
   content turns the nav item purple (set only by `updateNavCurrent()` on a
