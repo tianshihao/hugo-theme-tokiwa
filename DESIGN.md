@@ -23,6 +23,13 @@ such a change, stop and reconsider.
   deliberate: font-metric drift would otherwise let the float indent the third
   title line.
 - Long tags are truncated whole-character with a custom "…" (JS), never shrunk.
+- **The teal vim pill is this same 2-line label box** — the pill's size is
+  always the label's line box (glyph + symmetric ~8px leading = 52px), never
+  the card's highlight box. It is a background on the label link, so its height
+  IS the label's line box. It only translates (see §5); it is never resized to
+  match the highlight. This symmetry (equal ~8px leading above and below the
+  glyph) is what keeps the pill reading as "the label + padding", so a pill
+  that is taller than the label's line box is a regression.
 
 ## 3. Divider rhythm
 
@@ -279,17 +286,29 @@ empty article and no cards).
   its box AND its tag label carries a teal pill (the second-layer highlight)
   while the card is selected; the preview TITLE keeps a teal pill while the
   cursor is on it. Only `l` to the next layer changes things (below).
-- **The pill is vertically CENTERED on the highlight box** (`syncTagPill()`):
-  the pill is the tag label's own (2-line) box and always keeps its natural
-  size (label + symmetric leading) — it is never stretched to the box. On
-  selecting a card the JS translates the label so its vertical center lands on
-  the box's center, for 1-line, 2-line AND 3+-line cards alike (for a 2-line
-  card the box is only a few px taller than the pill, so the shift is tiny; the
-  same center rule holds however tall the content is). The shift is applied to
-  `.tag-label` (the pill's container), not the `<a>`, because `.tag-label`'s
-  `overflow:hidden` would clip a relatively-offset link whose background pokes
-  below its box, and a relative offset never reflows the titles. Deselection
-  (moving to another card) and vim-exit reset it.
+- **The pill is the LABEL's own box — sized by the label, never by the box**
+  (`syncTagPill()`). The teal pill is the tag label's 2-line box (label glyph +
+  symmetric ~8px leading), so it is always **52px** — the label's line box
+  (`2 × --list-line-height`). **INVARIANT: the pill is never resized. DO NOT
+  stretch it to the highlight box.** The earlier "stretch + top-align" version
+  made the pill's top equal the box's top while its bottom poked below the
+  box's bottom — inflating the link changes the label's line-box layout, so the
+  top computed from the stale natural position was wrong, and the pill was no
+  longer centered. The pill only ever **translates** (a pure vertical offset),
+  never changes size.
+- **The pill translates to center on the highlight box ONLY while the titles
+  stay BESIDE the label (1–2 lines).** For a 2-line card the box is only a few
+  px taller than the pill, so the shift is tiny; 1-line and 2-line both center
+  (their titles never run below the label, so the pill cannot collide with
+  them). **For 3+ lines the pill keeps its natural position ON the label** — the
+  titles then wrap below the label, and centering a small pill on a tall box
+  floats the tag name over those titles (a real regression the user rejected;
+  `syncTagPill()` detects it by comparing the titles' bottom to the label's
+  bottom and skips the translate). The shift is applied to `.tag-label` (the
+  pill's container), not the `<a>`: `.tag-label`'s `overflow:hidden` would clip
+  a relatively-offset link whose background pokes below its box, and a relative
+  offset never reflows the titles. Deselection (moving to another card) and
+  vim-exit reset the shift.
 - **Only `l` to the NEXT layer turns the PREVIOUS layer's font purple-red**
   (medium-red-violet, the same as the nav's current-page indicator): nav →
   content turns the nav item purple (set only by `updateNavCurrent()` on a
