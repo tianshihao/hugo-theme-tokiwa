@@ -1594,9 +1594,19 @@
 					window.location.href = a.href;
 					return;
 				}
-				/* committing: mark the loaded page's nav item purple-red, and drop
-				   the :focus the browser left on the link so it shows right away */
-				updateNavCurrent();
+				/* committing (mouse click / g-leader) is the equivalent of
+				   pressing l: if the vim cursor was in the nav, move it out into
+				   the loaded content and select its first item (first card on a
+				   taxonomy overview, first row elsewhere), so the next j/k move
+				   the content, not the nav. A plain click outside vim mode just
+				   shows the content without activating a cursor. Either way the
+				   loaded page's nav item is marked purple-red, and the :focus the
+				   browser left on the link is dropped so it shows right away. */
+				if (inNav()) {
+					enterMainContent();
+				} else {
+					updateNavCurrent();
+				}
 				if (document.activeElement && document.activeElement.blur) {
 					document.activeElement.blur();
 				}
