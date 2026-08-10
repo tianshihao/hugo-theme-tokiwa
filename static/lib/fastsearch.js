@@ -3,27 +3,30 @@ var fuseIndex;
 var searchVisible = false;
 var firstRun = true; // allow us to delay loading json data unless search activated
 var list = document.getElementById('searchResults'); // targets the <ul>
-var first = list.firstChild; // first child of search list
-var last = list.lastChild; // last child of search list
 var maininput = document.getElementById('searchInput'); // input box for search
+var first = list ? list.firstChild : null; // first child of search list
+var last = list ? list.lastChild : null; // last child of search list
 var resultsAvailable = false; // Did we get any search results?
 
 
 // ==========================================
 // execute search as each character is typed
+// (the article header has no search box — guard every access)
 //
-document.getElementById("searchInput").onfocus = function (e) {
-  if (firstRun) {
-    loadSearch()
-    firstRun = false
+if (maininput) {
+  maininput.onfocus = function (e) {
+    if (firstRun) {
+      loadSearch()
+      firstRun = false
+    }
   }
-}
-document.getElementById("searchInput").onkeyup = function (e) {
-  if (firstRun) {
-    loadSearch()
-    firstRun = false
+  maininput.onkeyup = function (e) {
+    if (firstRun) {
+      loadSearch()
+      firstRun = false
+    }
+    executeSearch(this.value);
   }
-  executeSearch(this.value);
 }
 
 
@@ -103,8 +106,11 @@ function executeSearch(term) {
     resultsAvailable = true;
   }
 
-  document.getElementById("searchResults").innerHTML = searchitems;
-  if (results.length > 0) {
+  var resultsEl = document.getElementById("searchResults");
+  if (resultsEl) {
+    resultsEl.innerHTML = searchitems;
+  }
+  if (results.length > 0 && list) {
     first = list.firstChild.firstElementChild; // first result container — used for checking against keyboard up/down location
     last = list.lastChild.firstElementChild; // last result container — used for checking against keyboard up/down location
   }

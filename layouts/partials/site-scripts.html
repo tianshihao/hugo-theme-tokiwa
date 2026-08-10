@@ -2263,6 +2263,24 @@
 			});
 		};
 
+		/* The article "back" link (page-header replaces the site nav with it):
+		   exactly the same as pressing h on a leaf — return to the page the
+		   article came from and restore the cursor there. With no saved context
+		   (e.g. a direct visit / search), fall back to home. */
+		window.tokiwaArticleBack = function () {
+			if (!returnToSource()) {
+				window.location.href = '/';
+			}
+		};
+		document.addEventListener('click', function (e) {
+			var back = e.target && e.target.closest ?
+				e.target.closest('[data-article-back]') : null;
+			if (back) {
+				e.preventDefault();
+				window.tokiwaArticleBack();
+			}
+		});
+
 		/* mouse parity: clicking a post row / card label / card preview also
 		   records where we came from, so h on the target restores it exactly
 		   like the keyboard path. The click itself is not intercepted — it

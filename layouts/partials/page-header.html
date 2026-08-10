@@ -1,11 +1,13 @@
 <div>
-	<h2>
+	<h1>
 		{{/* always relative '/' — an absolute BaseURL here would break the SPA
-		   first-level matching for home on the deployed site (see site-header) */}}
+		   first-level matching for home on the deployed site (see site-header).
+		   The site title is an h1 here too, so "笔记本子" is the exact same size
+		   as on every other page — only the article title below is larger. */}}
 		<a href="/" title="{{ .Site.Title }}" class="heading font-cursive icon" data-site-title>{{ .Site.Title }}</a>
-	</h2>
+	</h1>
 </div>
-<h1 class="pt-2">
+<h1 class="pt-2 article-title">
 	{{- .Title -}}
 </h1>
 {{with .Description}}
@@ -20,4 +22,7 @@
 </div>
 {{ partial "toc.html" . }}
 <hr />
-{{ partial "site-navigation.html" . }}
+{{/* the article has no site nav — it keeps the TOC and a single back link
+   (site-scripts' tokiwaArticleBack), which behaves exactly like pressing h:
+   return to the page the article came from and restore the cursor there. */}}
+<a href="#" data-article-back title="Back to the previous level" class="font-serif">← Back</a>

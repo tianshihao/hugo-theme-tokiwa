@@ -537,33 +537,50 @@
 		   never pointer-blocked here — a cursor can hover over a link and show
 		   its sweep/color next to the vim-active highlight. */
 
-		/* Fixed-chrome header: on every non-article page the header's sticky
-		   top equals its natural position (--chrome-top), so it never moves
-		   while scrolling and sits at the exact same spot on home / posts /
-		   tags / categories / series. --chrome-top also drives the shell's top
-		   padding, so the natural spot IS that offset — slightly higher than
-		   the old 4rem. */
+		/* Fixed-chrome header: on EVERY page — home / posts / term / about /
+		   404, the scrolling overviews (tags / categories / series) and the
+		   article pages — the header's sticky top equals its natural position
+		   (--chrome-top), so it never moves while scrolling and the site title
+		   ("笔记本子") always sits at the exact same spot and size. --chrome-top
+		   also drives the shell's top padding, so the natural spot IS that
+		   offset. */
 		:root {
-			/* header's gap from the viewport top mirrors the aside's gap from
-			   the bottom (--aside-gap), slightly larger, so the top and bottom
-			   chrome are symmetric */
-			--chrome-top: calc(var(--aside-gap) + 6px);
+			/* the header's gap from the viewport top equals the aside's gap from
+			   the bottom (--aside-gap), so the top and bottom chrome are exactly
+			   symmetric — one value drives both */
+			--chrome-top: var(--aside-gap);
 		}
 		@media (min-width: 768px) {
-			/* the shell's top padding is the header's natural resting spot */
-			body:not(.is-article) [data-home-shell] {
+			/* the shell's top padding is the header's natural resting spot —
+			   applied to every page, articles included */
+			[data-home-shell] {
 				padding-top: var(--chrome-top);
 			}
-			/* scrolling pages (tags / categories / series): sticky top = the
-			   natural spot, so the header never moves while scrolling */
-			body:not(.is-article):not(.home-one-screen) [data-home-shell] > header > div {
+			/* scrolling pages (tags / categories / series / articles): sticky
+			   top = the natural spot, so the header never moves while scrolling */
+			body:not(.home-one-screen) [data-home-shell] > header > div {
 				position: sticky;
 				top: var(--chrome-top);
 			}
-			/* one-screen pages (home / posts) never scroll, so the header is
-			   plain static — it sits at --chrome-top and never moves either */
+			/* one-screen pages (home / posts / term / about / 404) never scroll,
+			   so the header is plain static — it sits at --chrome-top and never
+			   moves either */
 			body.home-one-screen [data-home-shell] > header > div {
 				position: static;
+			}
+		}
+
+		/* Article pages: the site title (h1) is now the same size as every other
+		   page, so the article title — the page's identity — steps one Tailwind
+		   size above h1 to keep it the dominant heading. */
+		body.is-article [data-home-shell] > header .article-title {
+			font-size: 2.25rem;  /* text-4xl — one step above h1's mobile 1.875rem */
+			line-height: 2.75rem;
+		}
+		@media (min-width: 1024px) {
+			body.is-article [data-home-shell] > header .article-title {
+				font-size: 3rem;  /* text-5xl — one step above h1's lg 2.25rem */
+				line-height: 3.5rem;
 			}
 		}
 
