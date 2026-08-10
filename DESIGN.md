@@ -367,7 +367,8 @@ empty article and no cards).
   all posts in the term as `[data-home-post-item]` rows inside
   `[data-home-posts-container]`, so every term page is one-screen like home.
 - `layouts/partials/one-screen.html` — single source of truth for "is this a
-  fixed one-screen page?" (home / posts section / taxonomy term). Used for both
+  fixed one-screen page?" (home / posts section / taxonomy term / about / 404).
+  Used for both
   the `body.home-one-screen` class and the footer block default — the block
   default is a separate template that only receives `.`, so it can't see a
   `$oneScreen` variable defined at the top of baseof.
@@ -384,10 +385,11 @@ the disqus separator line + container are gated on `disqusShortname` so an
 unconfigured site never shows two stacked `<hr />`s — only the single closing
 line remains), generic list → `pagination`, about (`layouts/about/list.html`) →
 a non-empty override rendering nothing — About is a fixed one-screen page with
-**no footer**. Taxonomy overview (`terms.html`) and 404 render nothing (the
-one-screen condition is false; an *empty* `define "footer"` does **not**
-override a `block` default in Hugo — only a non-empty one does, so keep the
-gating in baseof).
+**no footer**. Taxonomy overview (`terms.html`) renders nothing (the one-screen
+condition is false; an *empty* `define "footer"` does **not** override a
+`block` default in Hugo — only a non-empty one does, so keep the gating in
+baseof). 404 is one-screen too but also overrides the footer to nothing (an
+*empty* `define "footer"` in `404.html`) so the home-pager never shows on it.
 
 The pager's one-screen layout (`body.home-one-screen [data-home-pager]`, in
 baseof) is a 5-column grid — `first`/`prev` on the left, page numbers in the
@@ -427,19 +429,30 @@ header is immobile and sits at the exact same spot, so switching pages never
 shifts it. The shell's top padding and the header's sticky top are both
 `--chrome-top`, so the header's natural position equals its sticky top and it
 never moves while scrolling. On the one-screen pages (home / posts / taxonomy
-term pages) the header is plain static (they never scroll); on the scrolling
-pages it's sticky with top = the same offset. `--chrome-top` is
+term pages / about / 404) the header is plain static (they never scroll); on
+the scrolling pages it's sticky with top = the same offset. `--chrome-top` is
 `calc(var(--aside-gap) + 6px)` — the header's gap from the top (40px) mirrors
 the aside's gap from the bottom (34px), slightly larger, and stays in sync if
 `--aside-gap` changes. The bottom bar keeps the same `--aside-gap` rhythm: on
 the one-screen pages (home / posts / taxonomy term pages) the aside and footer
-are `position: fixed; bottom: var(--aside-gap)` via `pinBottomRails()`; on the
-scrolling pages the aside is `sticky` at the same bottom gap. The footer is
+are `position: fixed; bottom: var(--aside-gap)` via `pinBottomRails()`; on
+about / 404 the same spot is reached with the flex layout + the `bottom: auto`
+guard (below), since the fit machinery never runs there; on the scrolling pages
+the aside is `sticky` at the same bottom gap. The footer is
 only ever pinned on the one-screen pages — on articles it flows right after
 `main` (in the right column), and its bottom edge lands at `--aside-gap` when
 scrolled to the end (the shell's `padding-bottom: var(--aside-gap)`), matching
 the first-level pages. The header is `position: sticky; top: 0` only on
 articles (`.is-article`), where it is allowed to ride up while reading.
+> **About and 404 are one-screen but the fit machinery never runs there** (they
+> have no posts to paginate, so `boot()`'s `capture()` fails and
+> `pinBottomRails()` never pins the aside). The aside would then fall back to
+> its scrolling-page `position: sticky; bottom: var(--aside-gap)`, and on short
+> content that sticky bottom offset lifts it a full `--aside-gap` (34px) above
+> where home / posts put it. Guard: `body.home-one-screen aside[data-home-aside]
+> { bottom: auto !important }` drops the sticky bottom on one-screen pages so
+> the flex layout (`align-self: end` + the shell's `padding-bottom`) pins the
+> aside at the same spot on home / posts / about / 404 alike.
 
 The one-screen pages (home / posts / taxonomy term pages) are fitted by
 measurement, not hardcoded: `buildPagesByHeight()` reads the real geometry
