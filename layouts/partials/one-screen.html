@@ -2,12 +2,12 @@
    one-screen: is this page a "fixed one-screen with footer" page? Home, the
    posts section, the about section (a fixed single page, footer overridden to
    none by its template), and every taxonomy term page (tags / categories /
-   series — Kind "term", e.g. /tags/c++/) fit to a single screen, pin the
-   aside + footer at the bottom, and show the home-pager (about excepted — its
-   template overrides the footer block to nothing). Single source of truth for
-   the body.home-one-screen class AND the footer block default — the block
-   default is a separate template that only receives ".", so it cannot see
-   $oneScreen, hence this shared partial.
+   series — Kind "term", e.g. /tags/c++/) and the 404 page fit to a single
+   screen, pin the aside + footer at the bottom, and show the home-pager
+   (about and 404 excepted — their templates override the footer block to
+   nothing). Single source of truth for the body.home-one-screen class AND the
+   footer block default — the block default is a separate template that only
+   receives ".", so it cannot see $oneScreen, hence this shared partial.
 */ -}}
-{{- $oneScreen := or .IsHome (and (eq .Kind "section") (eq .Section "posts")) (eq .Kind "term") (and (eq .Kind "section") (eq .Section "about")) -}}
+{{- $oneScreen := or .IsHome (and (eq .Kind "section") (eq .Section "posts")) (eq .Kind "term") (and (eq .Kind "section") (eq .Section "about")) (eq .Kind "404") -}}
 {{- return $oneScreen -}}
