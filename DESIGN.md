@@ -148,13 +148,39 @@ behavior: enter the nav. Leaving for a different top-level page via the nav
 (`openNavItem()`) clears a pending context, since that navigation supersedes
 the h-back.
 
+**First-level pages also redirect when visited directly.** A direct visit to
+`/posts/`, `/tags/`, `/categories/`, `/series/` or `/about/` (address bar,
+external link) is intercepted by a small script in `baseof`'s `<head>` (it runs
+before the body renders, so the standalone page never flashes) and redirected
+to `/?to=<path>`; home's `tokiwaLoadToPage()` then loads that page's content
+into the right pane via the same SPA swap and commits it (the purple current-
+page indicator), consuming `?to=` via `replaceState` so the URL becomes plain
+home. This list MUST match `FIRST_LEVEL_PATHS`. Taxonomy **term** pages (e.g.
+`/tags/c++/`) are real pages and are never redirected.
+
+**Home itself is a real link.** Clicking the site title (`data-site-title`) or
+pressing `gh` navigates to `/` for real (a normal logo→homepage click) —
+`openNavItem()` special-cases the home target. The other first-level items
+(posts / tags / categories / series / about) still commit **in place** via the
+SPA preview; only home is a real navigation.
+
 ### Nav live-preview (first-level pages)
 
 On a **first-level** page — a page that is exactly one of the nav destinations
 (home / posts / tags / categories / series / about) — the nav is a live
 preview: `j`/`k`/`gg`/`G` moving the cursor **loads the selected page's main +
 footer into the right pane via fetch**, in place — not a navigation, so the URL
-never moves (every first-level page shares the entry URL, e.g. `/`). Each move
+never moves (every first-level page shares the entry URL, e.g. `/`).
+> **INVARIANT: the home title link's href is ALWAYS the relative `/`**
+> (`site-header.html` / `page-header.html` — never the absolute `BaseURL`).
+> `isFirstLevel()` and `navItemForHref()` compare nav hrefs to the pathname, so
+> an absolute href (e.g. `https://site/`) makes home look like an external page:
+> `isFirstLevel()` returns false on `/`, the nav live-preview dies on the home
+> page of the deployed site, and `gh` / a home click fall back to a real
+> navigation. Only a relative `/` keeps home a first-level page in production
+> (the menu links are already root-relative). This was a real deployed-only
+> regression.
+Each move
 bumps a `previewRequestId`; a stale response is dropped, so rapid j/k always
 settles on the last selection. The swap re-boots the target's machinery through
 the re-callable modules `oneScreenPage.boot()/.teardown()` (home / posts / term)
