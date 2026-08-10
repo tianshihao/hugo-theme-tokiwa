@@ -354,6 +354,17 @@
 				align-self: end;
 			}
 
+			/* the aside is position:sticky with bottom: var(--aside-gap) on every
+			   page (that is what pins it while scrolling). On a one-screen page
+			   there is NO scroll, and when the content is short (e.g. about) the
+			   sticky bottom offset still applies and lifts the aside 34px above
+			   where it should be. The flex layout already pins it (align-self:end
+			   + the shell's bottom padding), so drop the sticky bottom here — it
+			   keeps the aside at the exact same spot on home, posts and about. */
+			body.home-one-screen aside[data-home-aside] {
+				bottom: auto !important;
+			}
+
 			/* the pager layout rules moved OUT of this media query — they must
 			   apply at any width where the pager is shown (see below) */
 
