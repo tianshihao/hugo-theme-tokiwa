@@ -214,9 +214,12 @@ classic behavior: `j`/`k` move the highlight and `l`/Enter navigate there.
 
 Mouse clicks on the nav behave the same way: on a first-level page, clicking a
 nav link (or the home title) runs the same fetch + swap, so the mouse and vim
-are two inputs on one engine. The click moves the vim nav cursor if it is
-active, updates the purple-red current-page indicator, and blurs the clicked
-link so the indicator shows immediately (matching a real page load).
+are two inputs on one engine. The click updates the purple-red current-page
+indicator and blurs the clicked link so the indicator shows immediately
+(matching a real page load). And if the vim cursor was in the nav, the click
+**moves it into the loaded content and selects its first item** — exactly like
+`l`/Enter — so the next `j`/`k` move the content, not the nav (a plain click
+outside vim mode just shows the content without activating a cursor).
 External links and non-previewable targets (articles / 404) fall back to a
 real navigation; clicks from deeper pages navigate normally.
 
@@ -224,9 +227,10 @@ The **g-leader is exactly a mouse click**: `gh`/`gp`/`gt`/`gc`/`gs`/`ga` resolve
 their route to the matching nav element via `navItemForHref()` (the home title
 is its own first-class item) and call the same shared `openNavItem()` as a
 click — dynamic-load into the right pane on a first-level page (URL never
-moves, purple commits on the target), real navigation otherwise. So every way
-of "selecting" a first-level page — j/k/gg/G preview, `l`/Enter commit, mouse
-click, and the g-leader — is one engine.
+moves, purple commits on the target, and a cursor in the nav moves into the
+content), real navigation otherwise. So every way of "selecting" a first-level
+page — j/k/gg/G preview, `l`/Enter commit, mouse click, and the g-leader — is
+one engine.
 
 The nav also takes priority over the reading view: once `h` has entered the
 nav, `j`/`k`/`gg`/`G` operate on the nav cursor even on a reading page (e.g.
