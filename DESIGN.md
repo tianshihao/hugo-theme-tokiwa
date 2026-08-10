@@ -182,7 +182,16 @@ never moves (every first-level page shares the entry URL, e.g. `/`).
 > regression.
 Each move
 bumps a `previewRequestId`; a stale response is dropped, so rapid j/k always
-settles on the last selection. The swap re-boots the target's machinery through
+settles on the last selection. **On first open the cache is pre-warmed**:
+`prefetchFirstLevel()` (fired from the boot block on a first-level page) fetches
+every first-level nav destination — home + posts / tags / categories / series /
+about — and `cachePreviewPage()` stores the parsed main/footer in
+`previewCache` (keyed by normalized path), **without applying it**, so the
+on-screen page is never disturbed. `previewNavTo()` then applies straight from
+the cache, so every j/k/gg/G move is instant (no network wait per move); a miss
+still fetches and warms the cache for the next move. The prefetch is
+fetch+cache only — the `previewRequestId` stale-drop and the purple-red commit
+rules are unchanged. The swap re-boots the target's machinery through
 the re-callable modules `oneScreenPage.boot()/.teardown()` (home / posts / term)
 and `taxonomyCards.boot()` (tags / categories / series) — refactored from
 one-shot IIFEs for exactly this — so the paginated list, the pinned footer and
