@@ -315,6 +315,16 @@ content wrappers; treating them as reading would hijack `j`/`k` into scrolling
 instead of navigating (e.g. `/categories/` with nothing categorized has an
 empty article and no cards).
 
+The article header (`single.html` → `page-header.html`) carries the TOC and
+**no site navigation** — the nav block (`site-navigation.html`, which also
+holds the search box) is replaced by a single "← Back" link
+(`[data-article-back]`). Clicking it calls `window.tokiwaArticleBack()`
+(site-scripts), which is exactly the `h` key on a leaf: `returnToSource()`
+navigates back to the page the article came from and restores the cursor there;
+with no saved context (e.g. a direct visit / search) it falls back to home.
+`fastsearch.js` is guarded so its absence of `#searchInput` / `#searchResults`
+on articles never throws.
+
 ## 5. Highlight (vim cursor) — align to dividers
 
 - Drawn as a `::before` overlay (`z-index: -1`), positioned with
@@ -437,16 +447,19 @@ stacking in a narrow view.
 
 ## 8. Fixed chrome — header & bottom bar never move
 
-On every non-article page (home / posts / tags / categories / series) the
-header is immobile and sits at the exact same spot, so switching pages never
-shifts it. The shell's top padding and the header's sticky top are both
-`--chrome-top`, so the header's natural position equals its sticky top and it
-never moves while scrolling. On the one-screen pages (home / posts / taxonomy
-term pages / about / 404) the header is plain static (they never scroll); on
-the scrolling pages it's sticky with top = the same offset. `--chrome-top` is
-`calc(var(--aside-gap) + 6px)` — the header's gap from the top (40px) mirrors
-the aside's gap from the bottom (34px), slightly larger, and stays in sync if
-`--aside-gap` changes. The bottom bar keeps the same `--aside-gap` rhythm: on
+On every page — the one-screen pages (home / posts / term / about / 404), the
+scrolling overviews (tags / categories / series) **and the article pages** —
+the header is immobile and sits at the exact same spot, so switching pages
+never shifts it. The shell's top padding and the header's sticky top are both
+`--chrome-top` (applied to the shell on **every** page now, articles included),
+so the header's natural position equals its sticky top and it never moves
+while scrolling. On the one-screen pages the header is plain static (they
+never scroll); on the scrolling pages — including articles — it's sticky with
+top = the same offset. `--chrome-top` **equals** `--aside-gap` (`--chrome-top:
+var(--aside-gap)`) — the header's gap from the top and the aside's gap from the
+bottom are the exact same single value (34px), so the top and bottom chrome are
+perfectly symmetric and always stay in sync. The bottom bar keeps the same
+`--aside-gap` rhythm: on
 the one-screen pages (home / posts / taxonomy term pages) the aside and footer
 are `position: fixed; bottom: var(--aside-gap)` via `pinBottomRails()`; on
 about / 404 the same spot is reached with the flex layout + the `bottom: auto`
@@ -455,8 +468,14 @@ the aside is `sticky` at the same bottom gap. The footer is
 only ever pinned on the one-screen pages — on articles it flows right after
 `main` (in the right column), and its bottom edge lands at `--aside-gap` when
 scrolled to the end (the shell's `padding-bottom: var(--aside-gap)`), matching
-the first-level pages. The header is `position: sticky; top: 0` only on
-articles (`.is-article`), where it is allowed to ride up while reading.
+the first-level pages. The header used to be `position: sticky; top: 0` on
+articles, but now it is sticky at `--chrome-top` like every scrolling page, so
+the site title ("笔记本子") never moves. **The site title is an `h1` on the
+article header too** (`page-header.html`), so it is the exact same size as on
+every other page — and the article title carries `.article-title`, which steps
+one Tailwind size above `h1` (`2.25rem` mobile / `3rem` on lg) so it stays the
+dominant heading. Net effect: "笔记本子" is pixel-identical in size and
+position on every page.
 > **About and 404 are one-screen but the fit machinery never runs there** (they
 > have no posts to paginate, so `boot()`'s `capture()` fails and
 > `pinBottomRails()` never pins the aside). The aside would then fall back to
