@@ -1469,27 +1469,73 @@
 			previewNavTo(href);
 		}
 
-		function previewNavTo(href) {
-			var reqId = ++previewRequestId;
+		/* Parsed first-level pages are cached so vim j/k/gg/G and the g-leader
+		   move between nav destinations instantly — each move applies an
+		   already-parsed page instead of waiting on fetch (see
+		   prefetchFirstLevel, which warms this on first open). Keyed by
+		   normalized path. */
+		var previewCache = {};
+
+		/* parse a fetched first-level page into the fields applyPreview needs,
+		   or null when it isn't previewable (missing main / an article) */
+		function parsePreviewDoc(html, path) {
+			var doc = new DOMParser().parseFromString(html, 'text/html');
+			var newMain = doc.querySelector('[data-home-main]');
+			if (!newMain) {
+				return null;
+			}
+			var bodyClass = (doc.body && doc.body.getAttribute('class')) || '';
+			if (bodyClass.indexOf('is-article') !== -1) {
+				return null; /* articles keep a real navigation */
+			}
+			var newFooter = doc.querySelector('[data-home-footer]');
+			return {
+				mainHTML: newMain.innerHTML,
+				footerHTML: newFooter ? newFooter.innerHTML : '',
+				oneScreen: bodyClass.indexOf('home-one-screen') !== -1,
+				path: path
+			};
+		}
+
+		/* fetch + parse + cache a first-level page WITHOUT applying it. Used by
+		   prefetchFirstLevel to warm the cache on first open — it never touches
+		   the request-id or the on-screen content. */
+		function cachePreviewPage(href) {
+			var path = normalizePath(href);
 			return fetch(href).then(function (res) {
 				if (!res.ok) { throw new Error('preview ' + res.status); }
 				return res.text();
 			}).then(function (html) {
-				/* a newer j/k superseded this one — drop it */
-				if (reqId !== previewRequestId) { return false; }
-				var doc = new DOMParser().parseFromString(html, 'text/html');
-				var newMain = doc.querySelector('[data-home-main]');
-				if (!newMain) { return false; }
-				var bodyClass = (doc.body && doc.body.getAttribute('class')) || '';
-				if (bodyClass.indexOf('is-article') !== -1) {
-					return false; /* articles keep a real navigation */
+				var entry = parsePreviewDoc(html, path);
+				if (entry) {
+					previewCache[path] = entry;
 				}
-				var newFooter = doc.querySelector('[data-home-footer]');
-				applyPreview(newMain.innerHTML, newFooter ? newFooter.innerHTML : '',
-					bodyClass.indexOf('home-one-screen') !== -1, normalizePath(href));
-				return true;
+				return !!entry;
 			}).catch(function () {
 				return false;
+			});
+		}
+
+		function previewNavTo(href) {
+			var path = normalizePath(href);
+			var reqId = ++previewRequestId;
+			/* apply only if this is still the latest request (a newer j/k may
+			   have superseded it); the caller holds a resolved promise */
+			function apply(entry) {
+				if (reqId !== previewRequestId) { return false; }
+				applyPreview(entry.mainHTML, entry.footerHTML, entry.oneScreen, entry.path);
+				return true;
+			}
+			var cached = previewCache[path];
+			if (cached) {
+				/* warm cache: apply instantly, no network */
+				return Promise.resolve(apply(cached));
+			}
+			/* no warm entry: fetch it now (and cache the result so the NEXT move
+			   is instant), then apply unless a newer request superseded it */
+			return cachePreviewPage(href).then(function (ok) {
+				if (!ok) { return false; }
+				return apply(previewCache[path]);
 			});
 		}
 
@@ -1666,6 +1712,45 @@
 				return href === path;
 			});
 		}
+
+		/* On first open, warm the preview cache with every first-level nav
+		   destination (home + posts / tags / categories / series / about), so
+		   moving the vim cursor through the nav is instant — each j/k/gg/G move
+		   applies an already-parsed page instead of waiting on the network. Only
+		   runs on a first-level page (the home SPA), where the live-preview
+		   lives; on articles / term pages the nav doesn't preview, so there is
+		   nothing to warm. Fetches are fetch+cache only (never applied); they are
+		   staggered a little so six pages don't hit the connection at once, and
+		   repeat visits hit the HTTP cache. */
+		function prefetchFirstLevel() {
+			if (!isFirstLevel()) {
+				return;
+			}
+			var links = [];
+			var title = document.querySelector('[data-site-title]');
+			if (title && title.href) { links.push(title); }
+			var nav = document.querySelector('[data-site-nav]');
+			if (nav) {
+				Array.prototype.forEach.call(nav.querySelectorAll('li > a'), function (a) {
+					if (a.href) { links.push(a); }
+				});
+			}
+			var seen = {};
+			var delay = 0;
+			links.forEach(function (a) {
+				var href = (a.getAttribute('href') || '').split('#')[0];
+				if (!isPageHref(href)) { return; }
+				var path = normalizePath(href);
+				if (seen[path] || previewCache[path]) { return; }
+				seen[path] = true;
+				delay += 100;
+				setTimeout(function () {
+					if (previewCache[path]) { return; } /* fetched meanwhile */
+					cachePreviewPage(href);
+				}, delay);
+			});
+		}
+		window.tokiwaPrefetchFirstLevel = prefetchFirstLevel;
 
 		/* ---- reading view (single article): j/k scroll, gg/G top/bottom ------
 		   The article is the deepest node of the tree — it has no list, so j/k
@@ -2488,6 +2573,10 @@
 		/* a direct first-level visit (?to=...): load its content into home */
 		if (window.tokiwaLoadToPage) {
 			window.tokiwaLoadToPage();
+		}
+		/* first open: warm the preview cache so nav j/k/gg/G move instantly */
+		if (window.tokiwaPrefetchFirstLevel) {
+			window.tokiwaPrefetchFirstLevel();
 		}
 	})();
 
