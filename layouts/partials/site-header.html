@@ -1,6 +1,10 @@
 	<div class="pb-4">
 		<h1 >
-			<a href="{{ if hugo.IsServer }}/{{ else }}{{ .Site.BaseURL }}{{ end }}" title="{{ .Site.Title }}" class="heading font-cursive icon" data-site-title>{{ .Site.Title }}</a>
+			{{/* the home link is ALWAYS relative '/', never the absolute BaseURL:
+			   the SPA first-level matching (isFirstLevel / navItemForHref) compares
+			   nav hrefs to the path, so an absolute URL would make home a non-
+			   first-level page on the deployed site and kill the nav preview there */}}
+			<a href="/" title="{{ .Site.Title }}" class="heading font-cursive icon" data-site-title>{{ .Site.Title }}</a>
 		</h1>
 	</div>
 	{{ partial "site-navigation.html" . }}

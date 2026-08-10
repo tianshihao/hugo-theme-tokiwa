@@ -2,6 +2,19 @@
 <html lang="{{ $.Site.LanguageCode | default "en" }}">
 {{ $oneScreen := partial "one-screen.html" . }}
 <head>
+	{{/* A first-level page (posts / tags / categories / series / about) is only
+	     ever shown inside home: a direct visit redirects to home with ?to=<path>,
+	     which home loads into the right pane (site-scripts' tokiwaLoadToPage).
+	     This list MUST match FIRST_LEVEL_PATHS in site-scripts.html. It runs
+	     before the body renders, so the standalone page never flashes. */}}
+	<script>
+		(function () {
+			var p = window.location.pathname.replace(/\/+$/, '') || '/';
+			if (p !== '/' && ['/posts', '/tags', '/categories', '/series', '/about'].indexOf(p) !== -1) {
+				window.location.replace('/?to=' + encodeURIComponent(p));
+			}
+		})();
+	</script>
 	<meta charset="utf-8">
 	<meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
 	{{/* NOTE: the Site's title, and if there is a page title, that is set too */}}

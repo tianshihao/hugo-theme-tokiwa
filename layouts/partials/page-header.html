@@ -1,6 +1,8 @@
 <div>
 	<h2>
-		<a href="{{ if hugo.IsServer }}/{{ else }}{{ .Site.BaseURL }}{{ end }}" title="{{ .Site.Title }}" class="heading font-cursive icon" data-site-title>{{ .Site.Title }}</a>
+		{{/* always relative '/' — an absolute BaseURL here would break the SPA
+		   first-level matching for home on the deployed site (see site-header) */}}
+		<a href="/" title="{{ .Site.Title }}" class="heading font-cursive icon" data-site-title>{{ .Site.Title }}</a>
 	</h2>
 </div>
 <h1 class="pt-2">

@@ -177,6 +177,10 @@
 		}
 
 		function applyPostsHeightLimit() {
+			/* the one-screen module may have been torn down (e.g. the nav
+			   preview loaded about into home), leaving a scheduled rAF that
+			   still fires on the swapped DOM — no-op once inactive */
+			if (!active) { return; }
 			if (!desktopMedia.matches) {
 				postsContainer.style.maxHeight = '';
 				postsContainer.style.overflow = '';
@@ -527,6 +531,7 @@
 		}
 
 		function buildPagesByHeight() {
+			if (!active) { return; } /* see applyPostsHeightLimit */
 			syncLabelFontSize();
 			pages = [];
 			resetVisibility();
@@ -1562,6 +1567,16 @@
 		   navigation too. */
 		function openNavItem(a) {
 			var href = (a.getAttribute('href') || '').split('#')[0];
+			/* the home title is the site root: clicking it (or gh) must actually
+			   GO to / — a real navigation, so the URL becomes the home page,
+			   exactly like a normal logo→homepage click. The other first-level
+			   items (posts / tags / categories / series / about) still commit
+			   in place via the SPA preview; only home is a real link. */
+			if (normalizePath(href) === '/') {
+				clearReturnContext();
+				window.location.href = '/';
+				return;
+			}
 			if (!isPageHref(href) || !isFirstLevel()) {
 				/* leaving for a different top-level page: a pending vim return no
 				   longer applies (this navigation supersedes the h-back) */
@@ -2125,6 +2140,34 @@
 		/* exposed so the load-time boot block can apply a pending return */
 		window.tokiwaApplyReturnRestore = applyReturnRestore;
 
+		/* A direct visit to a first-level page (e.g. /tags/) is redirected to
+		   home with ?to=<path> (see baseof's head script); home then loads that
+		   page's content into the right pane and commits it (the purple current-
+		   page indicator), so a first-level page is only ever seen inside home —
+		   never on its own URL. The ?to= param is consumed via replaceState so
+		   the URL becomes plain home and later SPA swaps never clash with a stale
+		   param. */
+		window.tokiwaLoadToPage = function () {
+			var params = new URLSearchParams(window.location.search);
+			var to = params.get('to');
+			if (!to) {
+				return;
+			}
+			var path = normalizePath(to);
+			if (path === '/' || !isFirstLevelPath(path)) {
+				return;
+			}
+			previewNavTo(path + '/').then(function (applied) {
+				if (applied) {
+					history.replaceState(null, '', '/');
+					/* committing a fresh visit: mark the nav item purple-red and
+					   drop any pending vim-return (this visit supersedes it) */
+					updateNavCurrent();
+					clearReturnContext();
+				}
+			});
+		};
+
 		/* mouse parity: clicking a post row / card label / card preview also
 		   records where we came from, so h on the target restores it exactly
 		   like the keyboard path. The click itself is not intercepted — it
@@ -2431,6 +2474,10 @@
 		   list / card page, put the cursor back where it was */
 		if (window.tokiwaApplyReturnRestore) {
 			window.tokiwaApplyReturnRestore();
+		}
+		/* a direct first-level visit (?to=...): load its content into home */
+		if (window.tokiwaLoadToPage) {
+			window.tokiwaLoadToPage();
 		}
 	})();
 
