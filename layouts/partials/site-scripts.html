@@ -1756,20 +1756,15 @@
 		   The article is the deepest node of the tree — it has no list, so j/k
 		   become smooth scrolling instead of item movement, modelled as a car at
 		   constant velocity from the very first frame (no initial burst):
-		     - a quick tap glides one fixed READ_TAP chunk (constant velocity),
-		     - holding keeps the same constant velocity, releasing stops instantly.
-		   READ_TAP is fixed, independent of article length. */
-		var READ_TAP = 300;      /* px a tap glides (fixed, ~1/4 viewport) */
+		   holding keeps the constant velocity, and releasing stops instantly —
+		   the same immediate-stop on release as d/u (j/k just move at 1× and
+		   d/u at READ_FAST ×, so each tap/hold travels a different distance). */
 		var READ_SPEED = 7;      /* px per frame base velocity (~420px/s) for j/k */
 		var READ_FAST = 5;       /* d/u scroll at this many × j/k speed */
-		var READ_TAP_MS = 160;   /* held longer than this = a hold, not a tap */
 		var readDir = 0;
 		var readRaf = 0;
-		var readMoved = 0;
-		var readDownAt = 0;
 		var readLast = 0;
 		var readSpeed = 1;       /* current speed multiplier (1 = j/k, READ_FAST = d/u) */
-		var readFinishingTap = false;
 
 		/* a single article page — the only "reading" page. The check keys off
 		   .c-rich-text (unique to single.html): terms.html / list.html / 404
@@ -1784,9 +1779,6 @@
 		function readStart(dir, mult) {
 			readDir = dir;
 			readSpeed = mult;
-			readMoved = 0;
-			readFinishingTap = false;
-			readDownAt = Date.now();
 			readLast = 0;
 			if (!readRaf) {
 				readRaf = requestAnimationFrame(readLoop);
@@ -1804,27 +1796,17 @@
 			readLast = now;
 			var step = READ_SPEED * readSpeed * dt / 16.67;
 			window.scrollBy(0, readDir * step);
-			readMoved += step;
-			if (readFinishingTap && readMoved >= READ_TAP) {
-				readDir = 0; /* the quick-tap chunk is complete */
-				readRaf = 0;
-				return;
-			}
 			readRaf = requestAnimationFrame(readLoop);
 		}
 
 		function readStop() {
-			/* a quick tap (released before READ_TAP_MS) glides a full READ_TAP
-			   chunk at constant velocity, then stops itself; anything held longer
-			   is a hold → stop right now (the car model) */
-			if (Date.now() - readDownAt < READ_TAP_MS && readMoved < READ_TAP) {
-				readFinishingTap = true;
-			} else {
-				readDir = 0;
-				if (readRaf) {
-					cancelAnimationFrame(readRaf);
-					readRaf = 0;
-				}
+			/* stop the car the instant the key is released — no tap glide, so a
+			   quick j/k press stops exactly where d/u does (the speed differs,
+			   the stop behavior does not) */
+			readDir = 0;
+			if (readRaf) {
+				cancelAnimationFrame(readRaf);
+				readRaf = 0;
 			}
 		}
 
