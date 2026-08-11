@@ -302,11 +302,12 @@ card re-selected), and `exitVim()` clears all four panes.
 A single article (reached by opening a list item) is the deepest node — it has
 no list, so `j`/`k` become smooth scrolling instead of item movement, modelled
 as a car at constant velocity from the very first frame (the first movement is
-small, not a burst): a quick tap glides one fixed `READ_TAP = 300px` chunk,
-holding keeps the same constant speed and stops instantly on release (the loop
-is time-based, so the speed holds even if the frame rate wobbles). `d`/`u`
-scroll at `READ_FAST = 5×` the j/k speed (like Ctrl+d/Ctrl+u). `gg`/`G` jump
-instantly to the top / bottom.
+small, not a burst): holding keeps the same constant speed, and **releasing
+stops instantly — no tap glide** (a quick j/k press moves only the ~1-2 frames
+it was held, then stops, exactly like `d`/`u`; the loop is time-based, so the
+speed holds even if the frame rate wobbles). `d`/`u` scroll at `READ_FAST = 5×`
+the j/k speed (like Ctrl+d/Ctrl+u) — same stop-on-release behavior, different
+distance per key. `gg`/`G` jump instantly to the top / bottom.
 
 A page is "reading" (`isReading()`) only when it is a real single article —
 detected by `article .c-rich-text`, which only `single.html` renders.
@@ -405,8 +406,10 @@ home-pager. It lives as the baseof default, gated by the shared
 `index.html`, `posts/list.html` and `_default/taxonomy.html`. Other page types
 override the block: article → `page-footer` (prev/next + related + disqus, where
 the disqus separator line + container are gated on `disqusShortname` so an
-unconfigured site never shows two stacked `<hr />`s — only the single closing
-line remains), generic list → `pagination`, about (`layouts/about/list.html`) →
+unconfigured site never shows two stacked `<hr />`s, and there is **no trailing
+closing line** — the footer's content reaches its own bottom edge, so the shell's
+`padding-bottom: var(--aside-gap)` puts the footer's bottom at the same 34px gap
+as the aside), generic list → `pagination`, about (`layouts/about/list.html`) →
 a non-empty override rendering nothing — About is a fixed one-screen page with
 **no footer**. Taxonomy overview (`terms.html`) renders nothing (the one-screen
 condition is false; an *empty* `define "footer"` does **not** override a
