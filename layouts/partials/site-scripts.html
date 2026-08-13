@@ -2710,4 +2710,125 @@
 			});
 		});
 	})();
+
+	/* ---- article TOC: dynamic height + scrollspy -------------------------
+	   The article header (site title + TOC) is sticky at the top of the left
+	   column and the aside is sticky at the bottom, so a long TOC would grow
+	   past the aside and cover it. We cap the TOC's height to the LIVE gap
+	   between its own top and the aside's top — never a fixed value — and let
+	   the TOC scroll inside that window. While reading, the link for the
+	   heading in view is highlighted; when the TOC overflows, the window
+	   scrolls to reveal that link (centered when it can). When the whole TOC
+	   already fits, there is NO window scrolling — just the highlight. */
+	(function () {
+		var desktop = window.matchMedia('(min-width: 768px)');
+		var tocWin = null;
+		var links = [];
+		var activeLink = null;
+		var raf = 0;
+		var HEAD_OFFSET = 120; /* a heading becomes "current" once it crosses this line */
+		var GAP = 16;          /* breathing room between the TOC bottom and the aside top */
+
+		function hasToc() {
+			return desktop.matches &&
+				!!document.querySelector('details.toc .toc-content') &&
+				!!document.querySelector('article .c-rich-text');
+		}
+
+		/* cap the TOC to the space between its own top (the header is sticky, so
+		   this is its pinned position) and the aside's top, measured live */
+		function fitToc() {
+			if (!hasToc()) { return; }
+			tocWin = document.querySelector('details.toc .toc-content');
+			var headerInner = tocWin.closest('header > div');
+			var aside = document.querySelector('[data-home-aside]');
+			if (!headerInner || !aside) { return; }
+			var root = getComputedStyle(document.documentElement);
+			var asideGap = parseFloat(root.getPropertyValue('--aside-gap')) || 34;
+			var asideH = aside.offsetHeight;
+			var asideTop = window.innerHeight - asideGap - asideH;
+			var tocTop = tocWin.getBoundingClientRect().top;
+			var maxH = asideTop - tocTop - GAP;
+			if (maxH < 40) { maxH = 40; } /* keep a few links visible; the window scrolls */
+			tocWin.style.maxHeight = maxH + 'px';
+		}
+
+		function collect() {
+			if (!hasToc()) { return; }
+			tocWin = document.querySelector('details.toc .toc-content');
+			var nav = tocWin.querySelector('nav#TableOfContents');
+			if (!nav) { return; }
+			links = [];
+			nav.querySelectorAll('a[href^="#"]').forEach(function (a) {
+				var raw = a.getAttribute('href').slice(1);
+				var id;
+				try { id = decodeURIComponent(raw); } catch (err) { id = raw; }
+				var h = document.getElementById(id);
+				if (h) { links.push({ a: a, h: h }); }
+			});
+		}
+
+		/* the last heading that crossed the reading line is the current one */
+		function currentLink() {
+			var cur = null;
+			for (var i = 0; i < links.length; i++) {
+				if (links[i].h.getBoundingClientRect().top <= HEAD_OFFSET) {
+					cur = links[i];
+				} else {
+					break;
+				}
+			}
+			return cur;
+		}
+
+		/* scroll the TOC window so the active link is visible — centered when the
+		   window is taller than it, else pinned to the nearest edge. This only
+		   scrolls the TOC window, never the page (manual scrollTop). */
+		function reveal(link) {
+			if (!tocWin) { return; }
+			/* the whole TOC fits: every link is visible, no window scrolling */
+			if (tocWin.scrollHeight <= tocWin.clientHeight + 1) { return; }
+			var wTop = tocWin.scrollTop;
+			var wBottom = wTop + tocWin.clientHeight;
+			var wRect = tocWin.getBoundingClientRect();
+			var lTop = link.a.getBoundingClientRect().top - wRect.top + wTop;
+			var lBottom = lTop + link.a.offsetHeight;
+			if (lTop < wTop || lBottom > wBottom) {
+				var target = lTop - (tocWin.clientHeight - link.a.offsetHeight) / 2;
+				target = Math.max(0, Math.min(target, tocWin.scrollHeight - tocWin.clientHeight));
+				tocWin.scrollTop = target;
+			}
+		}
+
+		function update() {
+			if (!hasToc()) { return; }
+			var link = currentLink();
+			if (link !== activeLink) {
+				if (activeLink) { activeLink.a.classList.remove('toc-active'); }
+				activeLink = link;
+				if (activeLink) { activeLink.a.classList.add('toc-active'); }
+			}
+			if (link) { reveal(link); }
+		}
+
+		function onScroll() {
+			if (raf) { return; }
+			raf = requestAnimationFrame(function () {
+				raf = 0;
+				update();
+			});
+		}
+
+		if (document.body.classList.contains('is-article')) {
+			collect();
+			fitToc();
+			update();
+			window.addEventListener('scroll', onScroll, { passive: true });
+			window.addEventListener('resize', function () { fitToc(); update(); });
+			/* re-fit once the serif fonts settle (they change the line heights) */
+			if (document.fonts && document.fonts.ready) {
+				document.fonts.ready.then(function () { fitToc(); update(); });
+			}
+		}
+	})();
 </script>

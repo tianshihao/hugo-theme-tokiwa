@@ -37,5 +37,25 @@
         font-size: 16px;
         line-height: 1;
     }
+
+    /* The TOC is a "window": its height is capped by JS to the live gap between
+       its own top and the aside's top, so it never grows past the aside. The
+       content scrolls inside that window. display:block (it was inline, which
+       ignores max-height/overflow), and overscroll-behavior keeps a wheel over
+       the TOC from also scrolling the page underneath. */
+    details.toc.toc-relaxed .toc-content {
+        display: block;
+        overflow-y: auto;
+        overscroll-behavior: contain;
+        scrollbar-width: thin;
+    }
+
+    /* The heading currently being read — same teal pill language as the
+       vim-active highlights across the site. */
+    details.toc.toc-relaxed .toc-content nav a.toc-active {
+        color: #028760;
+        background-color: rgba(2, 135, 96, 0.14);
+        border-radius: 3px;
+    }
 </style>
 {{ end }}
