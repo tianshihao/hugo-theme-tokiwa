@@ -2711,6 +2711,93 @@
 		});
 	})();
 
+	/* ---- image captions: render the markdown alt under each image ----------
+	   Markdown images (![alt](src)) carry descriptive text that the browser
+	   only shows on hover. Render that alt as a small caption under the image
+	   (figure > figcaption), so every figure reads as a labeled diagram. The
+	   alt attribute is kept for accessibility / tooltip. Runs BEFORE the TOC
+	   fitting below, so the added caption height is measured into the TOC's
+	   window (the sticky clamp and the aside gap depend on the real layout). */
+	(function () {
+		var rich = document.querySelector('.c-rich-text');
+		if (!rich) { return; }
+		rich.querySelectorAll('img').forEach(function (img) {
+			var alt = (img.getAttribute('alt') || '').trim();
+			if (!alt) { return; }
+			if (img.closest('figure')) { return; } /* already wrapped (e.g. a figure shortcode) */
+			var fig = document.createElement('figure');
+			fig.className = 'c-figure';
+			var cap = document.createElement('figcaption');
+			cap.className = 'img-caption';
+			cap.textContent = alt;
+			var parent = img.parentNode;
+			if (parent && parent.tagName === 'P' && parent.children.length === 1 &&
+				!parent.textContent.trim()) {
+				/* the whole paragraph is just this image → replace it with the figure */
+				parent.parentNode.replaceChild(fig, parent);
+			} else {
+				parent.insertBefore(fig, img);
+			}
+			fig.appendChild(img);
+			fig.appendChild(cap);
+		});
+	})();
+
+	/* ---- auto-link bare URLs + open external links in a new tab -----------
+	   In the article body: (1) every real external <a> (absolute http(s) URL
+	   that is not this site's own origin) gets target="_blank" rel="noopener"
+	   so the reader is never yanked away; (2) bare http(s):// URLs sitting in
+	   plain text (e.g. a "原文地址" line, which goldmark's linkify does not
+	   autolink in a CJK context) are wrapped into the same external link.
+	   URLs inside existing <a>/<code>/<pre> are left alone. */
+	(function () {
+		var rich = document.querySelector('.c-rich-text');
+		if (!rich) { return; }
+		var origin = window.location.origin;
+		var makeExternal = function (a, href) {
+			a.setAttribute('href', href);
+			a.setAttribute('target', '_blank');
+			a.setAttribute('rel', 'noopener');
+		};
+		/* (1) external <a> links already rendered by the markdown → new tab */
+		rich.querySelectorAll('a[href]').forEach(function (a) {
+			var href = a.getAttribute('href') || '';
+			if (/^https?:\/\//i.test(href) && href.indexOf(origin) !== 0) {
+				if (!a.hasAttribute('target')) { a.setAttribute('target', '_blank'); }
+				var rel = a.getAttribute('rel') || '';
+				if (rel.indexOf('noopener') === -1) {
+					a.setAttribute('rel', (rel ? rel + ' ' : '') + 'noopener');
+				}
+			}
+		});
+		/* (2) bare URLs in text nodes → wrap into an external link. The URL
+		   stops at whitespace / CJK letters / CJK punctuation. */
+		var urlRe = /(https?:\/\/[^\s<>\u4e00-\u9fff\u3000-\u303f\uff00-\uffef\u2000-\u200f\u2028\u2029]+)/g;
+		var nodes = [];
+		var walker = document.createTreeWalker(rich, NodeFilter.SHOW_TEXT);
+		while (walker.nextNode()) { nodes.push(walker.currentNode); }
+		nodes.forEach(function (node) {
+			var parent = node.parentNode;
+			if (!parent || parent.closest('a, code, pre')) { return; }
+			var text = node.nodeValue;
+			urlRe.lastIndex = 0;
+			if (!urlRe.test(text)) { return; }
+			urlRe.lastIndex = 0;
+			var frag = document.createDocumentFragment();
+			var last = 0, m;
+			while ((m = urlRe.exec(text)) !== null) {
+				if (m.index > last) { frag.appendChild(document.createTextNode(text.slice(last, m.index))); }
+				var a = document.createElement('a');
+				makeExternal(a, m[0]);
+				a.textContent = m[0];
+				frag.appendChild(a);
+				last = m.index + m[0].length;
+			}
+			if (last < text.length) { frag.appendChild(document.createTextNode(text.slice(last))); }
+			parent.replaceChild(frag, node);
+		});
+	})();
+
 	/* ---- article TOC: dynamic height + scrollspy -------------------------
 	   The article header (site title + TOC) is sticky at the top of the left
 	   column and the aside is sticky at the bottom, so a long TOC would grow
@@ -2736,19 +2823,40 @@
 		}
 
 		/* cap the TOC to the space between its own top (the header is sticky, so
-		   this is its pinned position) and the aside's top, measured live */
+		   this is its pinned position) and the aside's top, measured live. The
+		   "← Back" link (and its hr) sit BELOW the TOC in the header, so that
+		   trailing strip is reserved for it first: the TOC gets everything from
+		   its top down to just above the back link, and the back link never
+		   slides into / covers the aside.
+		   The header is ALSO clamped by its sticky containing block — the <header>
+		   element, stretched to the article's height: at maximum scroll the whole
+		   header (TOC + back) must still fit between the pinned top and the
+		   containing block's bottom, or the browser pushes the header up and it
+		   jumps between gg (top) and G (bottom). That clamp is the tighter bound
+		   on long-TOC articles, so the TOC is capped by the min of the two. */
 		function fitToc() {
 			if (!hasToc()) { return; }
 			tocWin = document.querySelector('details.toc .toc-content');
 			var headerInner = tocWin.closest('header > div');
+			var headerEl = tocWin.closest('header');
 			var aside = document.querySelector('[data-home-aside]');
-			if (!headerInner || !aside) { return; }
+			if (!headerInner || !headerEl || !aside) { return; }
 			var root = getComputedStyle(document.documentElement);
 			var asideGap = parseFloat(root.getPropertyValue('--aside-gap')) || 34;
 			var asideH = aside.offsetHeight;
 			var asideTop = window.innerHeight - asideGap - asideH;
 			var tocTop = tocWin.getBoundingClientRect().top;
-			var maxH = asideTop - tocTop - GAP;
+			/* trailing header space below the TOC window (the hr + back link),
+			   measured live so font loading / title wrapping is picked up */
+			var after = headerInner.getBoundingClientRect().bottom - tocWin.getBoundingClientRect().bottom;
+			if (after < 0) { after = 0; }
+			/* the containing block's bottom, translated to where it sits at
+			   maximum scroll (scroll-independent: current rect + scrollY − maxScroll) */
+			var maxScroll = Math.max(0, document.documentElement.scrollHeight - window.innerHeight);
+			var cbBottom = headerEl.getBoundingClientRect().bottom + window.scrollY - maxScroll;
+			var roomToAside = asideTop - tocTop - GAP - after;
+			var roomToClamp = cbBottom - tocTop - after;
+			var maxH = Math.min(roomToAside, roomToClamp);
 			if (maxH < 40) { maxH = 40; } /* keep a few links visible; the window scrolls */
 			tocWin.style.maxHeight = maxH + 'px';
 		}

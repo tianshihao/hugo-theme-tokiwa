@@ -38,6 +38,20 @@
 	     same distance from the viewport bottom on every desktop page, including at
 	     the very end of a long page (no "rise" at the footer). */}}
 	<style>
+		/* Global text-selection color: replace the browser-default blue with the
+		   theme's teal everywhere. The compiled app.css only styles ::selection
+		   inside .c-rich-text, so the headers / nav / aside / TOC were left with
+		   the default blue. Same java-700 bg + java-100 text as the article
+		   body's existing selection, so the whole site reads consistently. */
+		::selection {
+			background-color: #2c726e; /* java-700 */
+			color: #edf9f8;            /* java-100 */
+		}
+		::-moz-selection {
+			background-color: #2c726e;
+			color: #edf9f8;
+		}
+
 		:root {
 			--aside-gap: 34px;
 		}
@@ -591,6 +605,29 @@
 		   (per request). The markdown files themselves are never modified. */
 		body.is-article .c-rich-text h1 {
 			display: none;
+		}
+
+		/* Markdown images + captions: every image in the article body is centered
+		   (block + auto horizontal margins — applies to all .c-rich-text img,
+		   whether or not site-scripts wrapped it in figure.c-figure), and the
+		   alt-text caption under it is centered too. Color: eucalyptus-400
+		   (#4eab90), the theme's teal at its label/divider weight (next to the
+		   #9acfbf divider lines and the year/tag labels), so the caption reads
+		   as a figure label, not content. The figure inherits the
+		   c-rich-text > * + * 1.5rem rhythm — no extra margin set (Tailwind
+		   preflight already zeroes <figure>). */
+		.c-rich-text img {
+			display: block;
+			margin-left: auto;
+			margin-right: auto;
+		}
+		.c-rich-text figure.c-figure > figcaption {
+			font-family: "Source Han Serif SC", "Source Han Serif CN", "Noto Serif CJK SC", serif;
+			font-size: 0.8125rem;
+			line-height: 1.6;
+			color: #4eab90; /* eucalyptus-400 */
+			text-align: center;
+			margin-top: 0.5rem;
 		}
 
 		/* The aside's RSS icon copies the feed to the clipboard on click (it is
