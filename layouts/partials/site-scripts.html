@@ -2856,7 +2856,10 @@
 			var cbBottom = headerEl.getBoundingClientRect().bottom + window.scrollY - maxScroll;
 			var roomToAside = asideTop - tocTop - GAP - after;
 			var roomToClamp = cbBottom - tocTop - after;
-			var maxH = Math.min(roomToAside, roomToClamp);
+			/* the rendered header can come out 1px taller than max-height
+			   (subpixel line-heights), which at max scroll would push the
+			   sticky header up by that pixel — take 1px off so it never moves */
+			var maxH = Math.min(roomToAside, roomToClamp) - 1;
 			if (maxH < 40) { maxH = 40; } /* keep a few links visible; the window scrolls */
 			tocWin.style.maxHeight = maxH + 'px';
 		}
@@ -2937,6 +2940,58 @@
 			if (document.fonts && document.fonts.ready) {
 				document.fonts.ready.then(function () { fitToc(); update(); });
 			}
+
+			/* Toggling the TOC changes the header's height. The stored
+			   max-height (capped at load to fit the aside AND the sticky
+			   containing block at max scroll) stays correct only while the
+			   TOC stays open; opening it at the bottom would grow the header
+			   to that stale value, and if it exceeds the room the containing
+			   block leaves at max scroll the browser pushes the header up
+			   (it "jumps"). So on OPEN we first hold the window at 0 — the
+			   header can't grow past anything — then re-fit on the next
+			   frame, which caps the height to exactly what fits. The header
+			   therefore never moves, wherever the page is. */
+			var tocDetails = document.querySelector('details.toc.toc-relaxed');
+			if (tocDetails && desktop.matches) {
+				tocDetails.addEventListener('toggle', function () {
+					if (!tocDetails.open) { return; }
+					var win = tocDetails.querySelector('.toc-content');
+					if (win) { win.style.maxHeight = '0px'; }
+					requestAnimationFrame(function () {
+						fitToc();
+						update();
+					});
+				});
+			}
 		}
+	})();
+
+	/* ---- TOC divider toggle: only the ☘ opens / closes --------------------
+	   The TOC's top divider (the <details> summary) is the collapse control,
+	   but clicking the line itself does nothing — only a click near the
+	   centred ☘ toggles. The line itself animates via the [open] CSS
+	   transition (grows from / retracts to the centre, like the theme's link
+	   underlines), and hovering near the ☘ shows a pointer cursor as
+	   affordance. */
+	(function () {
+		var details = document.querySelector('details.toc.toc-relaxed');
+		if (!details) { return; }
+		var summary = details.querySelector('summary');
+		if (!summary) { return; }
+		var HIT = 46; /* px either side of the centre that counts as "near the ☘" */
+		var nearShroom = function (x) {
+			var r = summary.getBoundingClientRect();
+			return Math.abs(x - (r.left + r.width / 2)) <= HIT;
+		};
+		summary.addEventListener('click', function (e) {
+			/* preventDefault on the summary stops the native details toggle */
+			if (!nearShroom(e.clientX)) { e.preventDefault(); }
+		});
+		summary.addEventListener('mousemove', function (e) {
+			summary.classList.toggle('toc-near', nearShroom(e.clientX));
+		});
+		summary.addEventListener('mouseleave', function () {
+			summary.classList.remove('toc-near');
+		});
 	})();
 </script>

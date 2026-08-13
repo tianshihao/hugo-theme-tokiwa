@@ -15,27 +15,73 @@
 
     details.toc.toc-relaxed>summary {
         list-style: none;
+        cursor: default; /* the line itself is not clickable — only the ☘ toggles */
+    }
+    details.toc.toc-relaxed>summary.toc-near {
+        cursor: pointer; /* affordance while hovering near the shamrock */
     }
 
     details.toc.toc-relaxed>summary::-webkit-details-marker {
         display: none;
     }
 
+    /* The divider is an animated line: drawn as a 1px background that grows
+       from / retracts to the centre (background-position: center) — opening
+       shoots it out of the ☘, closing reels it back in, the same
+       background-size sweep as the theme's link underlines. Collapsed, the
+       line is 0 wide and only the ☘ remains. */
     details.toc.toc-relaxed hr {
         position: relative;
+        border: none;
+        height: 5px;
+        margin-top: 0.8em;
+        margin-bottom: 0.4em;
+        background-image: linear-gradient(#9acfbf, #9acfbf);
+        background-repeat: no-repeat;
+        background-position: center;
+        background-size: 100% 1px; /* open: full-width line */
+        transition: background-size 0.35s cubic-bezier(0, .5, 0, 1);
+    }
+    details.toc.toc-relaxed:not([open]) hr {
+        background-size: 0 1px; /* closed: line fully retracted, ☘ only */
+    }
+
+    /* The divider BELOW the TOC (between the TOC and the ← Back link) gets the
+       same animated line: it grows from the centre when the TOC opens and
+       reels back to the centre when it closes, so the two lines frame the TOC
+       symmetrically — the summary line above and this line below sweep out
+       from the middle together. Collapsed, it is 0 wide (invisible), leaving
+       only the ☘ and the Back link. The style block renders between the
+       details and the hr, so the bottom hr is a general (not adjacent)
+       sibling — hence `~ hr`. */
+    details.toc.toc-relaxed ~ hr {
+        position: relative;
+        border: none;
+        height: 5px;
+        margin-top: 0.4em;
+        margin-bottom: 0.8em;
+        background-image: linear-gradient(#9acfbf, #9acfbf);
+        background-repeat: no-repeat;
+        background-position: center;
+        background-size: 100% 1px; /* open: full-width line */
+        transition: background-size 0.35s cubic-bezier(0, .5, 0, 1);
+    }
+    details.toc.toc-relaxed:not([open]) ~ hr {
+        background-size: 0 1px; /* closed: line fully retracted */
     }
 
     details.toc.toc-relaxed hr::after {
-        content: '\00A7';
+        content: '\2618\FE0E'; /* ☘︎ shamrock + text-presentation selector (stays monochrome so it takes the teal) */
         position: absolute;
-        right: 0;
-        top: -0.72rem;
-        transform: none;
-        padding: 0 0.35rem;
-        background: transparent;
-        color: #80d2cd;
-        font-size: 16px;
+        left: 50%;
+        transform: translateX(-50%);
+        top: -7px;             /* the shamrock's leaf junction sits on the line */
+        padding: 0 0.5rem;
+        background: #f7fafc;   /* body bg → masks the line, which "breaks" around the ornament */
+        color: #4eab90;        /* eucalyptus-400 — same teal as the footer ❧ */
+        font-size: 18px;
         line-height: 1;
+        pointer-events: none;
     }
 
     /* The TOC is a "window": its height is capped by JS to the live gap between
