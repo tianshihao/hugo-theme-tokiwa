@@ -643,6 +643,13 @@
 			hyphens: auto;             /* English words hyphenate (reduces gaps) */
 			-webkit-hyphens: auto;     /* older Safari */
 		}
+		/* text-align-last is inherited, so the p's `left` would leak into KaTeX
+		   display math (a single-line block — for it, text-align-last wins over
+		   KaTeX's own text-align: center) and push formulas to the left. Reset
+		   it so display formulas centre again. */
+		.c-rich-text .katex-display {
+			text-align-last: center;
+		}
 
 		/* Markdown images + captions: every image in the article body is centered
 		   (block + auto horizontal margins — applies to all .c-rich-text img,
