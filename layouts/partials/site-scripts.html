@@ -2879,11 +2879,28 @@
 			var headerGap = parseFloat(root.getPropertyValue('--header-gap')) || 8;
 			var asideH = aside.offsetHeight;
 			var asideTop = window.innerHeight - asideGap - asideH;
-			var tocTop = tocWin.getBoundingClientRect().top;
+			/* the divider lines sweep (0.35s) on open, so their LIVE size is
+			   mid-transition. Measure their SETTLED geometry instead — the top
+			   line's top is fixed, so the content top is that + the line's
+			   settled total; the trailing strip below is adjusted by the bottom
+			   line's remaining growth. This keeps the cap correct whether fitToc
+			   runs mid-sweep or after it. */
+			var topLine = tocWin.parentNode.querySelector('.toc-line-top');
+			var bottomLine = tocWin.parentNode.querySelector('.toc-line-bottom');
+			var topSettled = 5 + headerGap + headerGap; /* height + both margins */
+			var bottomSettled = 5 + headerGap;          /* height + top margin */
+			var tocTop = topLine
+				? topLine.getBoundingClientRect().top + topSettled
+				: tocWin.getBoundingClientRect().top;
 			/* trailing header space below the TOC window (the bottom line + the
-			   ← Back link), measured live so font loading / title wrapping is
-			   picked up */
+			   ← Back link); the bottom line's sweep would under-count it, so add
+			   back the remaining growth */
 			var after = headerInner.getBoundingClientRect().bottom - tocWin.getBoundingClientRect().bottom;
+			if (bottomLine) {
+				var bcs = getComputedStyle(bottomLine);
+				var bottomCurrent = (parseFloat(bcs.height) || 0) + (parseFloat(bcs.marginTop) || 0) + (parseFloat(bcs.marginBottom) || 0);
+				after += (bottomSettled - bottomCurrent);
+			}
 			if (after < 0) { after = 0; }
 			/* the rendered header can come out 1px taller than max-height
 			   (subpixel line-heights), so take 1px off the cap */
@@ -2942,23 +2959,22 @@
 			return cur;
 		}
 
-		/* scroll the TOC window so the active link is visible — centered when the
-		   window is taller than it, else pinned to the nearest edge. This only
-		   scrolls the TOC window, never the page (manual scrollTop). */
+		/* scroll the TOC window so the ACTIVE link stays as close to the MIDDLE
+		   of the window as possible — it chases the heading you're reading.
+		   Only the window scrolls, never the page (manual scrollTop). When the
+		   whole TOC fits there's nothing to scroll; the clamp pins the active
+		   link to the nearest edge at the ends (as close to centre as it gets).
+		   CSS scroll-behavior: smooth animates the chase. */
 		function reveal(link) {
 			if (!tocWin) { return; }
 			/* the whole TOC fits: every link is visible, no window scrolling */
 			if (tocWin.scrollHeight <= tocWin.clientHeight + 1) { return; }
-			var wTop = tocWin.scrollTop;
-			var wBottom = wTop + tocWin.clientHeight;
 			var wRect = tocWin.getBoundingClientRect();
+			var wTop = tocWin.scrollTop;
 			var lTop = link.a.getBoundingClientRect().top - wRect.top + wTop;
-			var lBottom = lTop + link.a.offsetHeight;
-			if (lTop < wTop || lBottom > wBottom) {
-				var target = lTop - (tocWin.clientHeight - link.a.offsetHeight) / 2;
-				target = Math.max(0, Math.min(target, tocWin.scrollHeight - tocWin.clientHeight));
-				tocWin.scrollTop = target;
-			}
+			var target = lTop - (tocWin.clientHeight - link.a.offsetHeight) / 2;
+			target = Math.max(0, Math.min(target, tocWin.scrollHeight - tocWin.clientHeight));
+			tocWin.scrollTop = target;
 		}
 
 		function update() {
@@ -3016,6 +3032,9 @@
 				if (!nowOpen || !desktop.matches) { return; }
 				var win = tocBody.querySelector('.toc-content');
 				if (win) { win.style.maxHeight = '0px'; }
+				/* hold the window at 0, then fit it to the FINAL (settled)
+				   geometry — fitToc already accounts for the divider lines' sweep —
+				   so the max-height transition grows it in sync with the lines. */
 				requestAnimationFrame(function () {
 					fitToc();
 					update();
@@ -3023,8 +3042,24 @@
 			}
 			function toggleToc() {
 				setToc(!(tocBody && tocBody.classList.contains('toc-open')));
+				spinClover();
 			}
 			window.tokiwaToggleToc = toggleToc;
+
+			/* spin the ☘ on every toggle — the animation lasts exactly as long as
+			   the TOC's own 0.35s sweep. Remove, force a reflow, re-add so rapid
+			   successive toggles restart it, then drop the class on end. */
+			function spinClover() {
+				if (!tocToggle) { return; }
+				tocToggle.classList.remove('toc-clover-spin');
+				void tocToggle.offsetWidth; /* restart the animation */
+				tocToggle.classList.add('toc-clover-spin');
+				tocToggle.addEventListener('animationend', function handler(ev) {
+					if (ev.animationName !== 'toc-clover-spin') { return; }
+					tocToggle.classList.remove('toc-clover-spin');
+					tocToggle.removeEventListener('animationend', handler);
+				});
+			}
 
 			if (tocToggle) {
 				tocToggle.addEventListener('click', toggleToc);

@@ -44,6 +44,18 @@
         color: #49beb7;
     }
 
+    /* Every time the TOC toggles (☘ click or za) the shamrock spins a few
+       quick turns over the same 0.35s as the divider-line sweep, so the whole
+       open/close feels like one gesture. JS re-adds this class per toggle and
+       removes it on animationend, so rapid toggles restart it cleanly. */
+    @keyframes toc-clover-spin {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(1080deg); } /* three full turns */
+    }
+    .toc-clover-spin {
+        animation: toc-clover-spin 0.35s cubic-bezier(0, .5, 0, 1);
+    }
+
     /* Vertical rhythm: one uniform gap between the article-title, the
        tags/date row, the two divider lines and the ← Back link. The row and
        the back link get a normal line-height (the header inherits
@@ -138,6 +150,12 @@
         overscroll-behavior: contain;
         scrollbar-width: none;   /* Firefox */
         -ms-overflow-style: none; /* legacy Edge/IE */
+        /* scrollspy chase: when the active link changes, the window glides to
+           keep it centred instead of jumping */
+        scroll-behavior: smooth;
+        /* when the TOC opens, the window grows from 0 to its cap in sync with
+           the divider-line sweep, instead of popping in afterwards */
+        transition: max-height 0.35s cubic-bezier(0, .5, 0, 1);
     }
     .toc-content::-webkit-scrollbar {
         display: none;           /* Chromium / Safari */

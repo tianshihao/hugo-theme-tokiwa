@@ -627,6 +627,23 @@
 			display: none;
 		}
 
+		/* Newspaper-style justified body text: paragraphs are flush on both
+		   edges (CJK uses inter-ideograph spacing), and the last line of each
+		   paragraph stays left-aligned so it isn't stretched. Long URLs / code
+		   tokens wrap instead of overflowing, and English words hyphenate to
+		   keep inter-word gaps small (hyphenation needs lang="en" on the
+		   article container — set in single.html — for Chrome to enable it).
+		   Scoped to <p> only — headings, lists and code blocks keep their own
+		   alignment. */
+		.c-rich-text p {
+			text-align: justify;
+			text-justify: inter-ideograph;
+			text-align-last: left;
+			overflow-wrap: break-word; /* long URLs / code tokens break, no overflow */
+			hyphens: auto;             /* English words hyphenate (reduces gaps) */
+			-webkit-hyphens: auto;     /* older Safari */
+		}
+
 		/* Markdown images + captions: every image in the article body is centered
 		   (block + auto horizontal margins — applies to all .c-rich-text img,
 		   whether or not site-scripts wrapped it in figure.c-figure), and the
@@ -648,6 +665,29 @@
 			color: #4eab90; /* eucalyptus-400 */
 			text-align: center;
 			margin-top: 0.5rem;
+		}
+
+		/* Article list bullets: replace the compiled scss's default black square
+		   (list-style-position: inside — ugly, drifts off the text and sits far
+		   from it) with the theme's soft teal dot. Each dot is drawn on the
+		   item's first line and vertically centred on it, and hangs just left of
+		   the text (the text itself stays flush with paragraphs). */
+		.c-rich-text ul {
+			list-style: none;
+			padding-left: 0;
+		}
+		.c-rich-text ul > li {
+			position: relative;
+		}
+		.c-rich-text ul > li::before {
+			content: "";
+			position: absolute;
+			left: -0.75rem; /* 12px left of the text start → ≈6px gap to the dot */
+			top: 0.6em;     /* centre the dot on the first line (0.4em dot) */
+			width: 0.4em;
+			height: 0.4em;
+			border-radius: 50%;
+			background: #4eab90; /* eucalyptus-400, the theme's teal */
 		}
 
 		/* The aside's RSS icon copies the feed to the clipboard on click (it is
