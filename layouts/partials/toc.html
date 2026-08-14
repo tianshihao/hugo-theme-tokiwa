@@ -83,6 +83,14 @@
         display: none !important;
     }
 
+    /* On load the TOC must match the za-persisted global state with no flash
+       or animation: a head script marks <html> when the saved state is
+       collapsed, hiding the body from the very first paint (before the JS that
+       applies the state runs). */
+    html.toc-init-collapsed .toc-body {
+        display: none !important;
+    }
+
     /* The two divider lines frame the TOC: each is a 1px line that sweeps out
        from the centre (background-size 0 → 100% at background-position center,
        the same sweep as the theme's link underlines) while its box grows from

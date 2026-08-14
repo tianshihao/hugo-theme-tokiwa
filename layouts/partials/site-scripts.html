@@ -1596,7 +1596,11 @@
 			if (!list) { return; }
 			Array.prototype.forEach.call(list.querySelectorAll('li > a'), function (a) {
 				var href = (a.getAttribute('href') || '').split('#')[0].replace(/\/+$/, '') || '/';
-				var isCurrent = href === path;
+				/* current when the shown page IS the nav item or lives under it —
+				   a term page (/tags/c++) highlights Tags. Home matches exactly
+				   only. Mirrors currentNavIndex, which already navigates by this
+				   rule. Articles have no nav, so they are unaffected. */
+				var isCurrent = href === '/' ? path === '/' : (path === href || path.indexOf(href + '/') === 0);
 				a.classList.toggle('font-medium', isCurrent);
 				a.classList.toggle('text-medium-red-violet-600', isCurrent);
 			});
@@ -2567,6 +2571,11 @@
 				syncTagPill(card, b);
 			}
 		});
+
+		/* on a fresh page load, mark the current page's nav item — so a term
+		   page (/tags/c++) lights up its taxonomy right away, exactly as it
+		   would after a commit. (h entering the nav still clears it.) */
+		updateNavCurrent();
 	})();
 
 	/* Bring keyboard focus into the page so the vim keys work immediately. The
@@ -3026,6 +3035,9 @@
 				var saved = null;
 				try { saved = sessionStorage.getItem(TOC_STATE_KEY); } catch (err) {}
 				if (saved === '0') { setToc(false); }
+				/* the initial state is now applied — drop the no-flash marker so
+				   user toggles (☘ / za) animate normally from here on */
+				document.documentElement.classList.remove('toc-init-collapsed');
 			}
 		}
 	})();
