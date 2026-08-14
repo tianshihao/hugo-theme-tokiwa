@@ -44,10 +44,43 @@
         color: #49beb7;
     }
 
+    /* Vertical rhythm: one uniform gap between the article-title, the
+       tags/date row, the two divider lines and the ← Back link. The row and
+       the back link get a normal line-height (the header inherits
+       leading-loose, which inflates their boxes) so the rhythm is predictable.
+       The back link's own top margin is the gap below the bottom line AND the
+       collapsed gap below the row, so the two states match. */
+    :root {
+        --header-gap: 8px;
+    }
+    .toc-row {
+        line-height: 1.5;
+        /* a touch more after the big article title — its line box carries
+           leading below the glyphs, so this lands the visible gap on the same
+           --header-gap as everywhere else */
+        margin-top: calc(var(--header-gap) + 6px);
+    }
+
+    /* The ← Back link: normal line-height + the uniform gap above it (covers
+       both the open state below the bottom line and the collapsed state below
+       the row). */
+    [data-article-back] {
+        display: inline-block;
+        line-height: 1.5;
+        margin-top: var(--header-gap);
+    }
+
     /* The TOC body is collapsed until the ☘ is clicked — the header row is
        just tags | ☘ | date until you open the TOC. */
     .toc-body:not(.toc-open) .toc-content {
         display: none;
+    }
+
+    /* JS auto-hides the TOC on very short viewports (less than one line
+       would fit). Transient visual state — it never touches the user's
+       open/close choice or the persisted value. */
+    .toc-body.toc-autohide {
+        display: none !important;
     }
 
     /* The two divider lines frame the TOC: each is a 1px line that sweeps out
@@ -70,8 +103,14 @@
     }
     .toc-body.toc-open .toc-line {
         height: 5px;
-        margin: 0.4em 0;
+        margin: var(--header-gap) 0;
         background-size: 100% 1px;
+    }
+    /* The bottom line only adds the gap above it (content → line); the gap
+       below it is the back link's own top margin, so open and collapsed agree. */
+    .toc-body.toc-open .toc-line-bottom {
+        margin-top: var(--header-gap);
+        margin-bottom: 0;
     }
 
     .toc-content nav li,

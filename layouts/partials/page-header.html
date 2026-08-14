@@ -13,7 +13,7 @@
 {{with .Description}}
 <h3 class="text-java-700 font-normal leading-relaxed pt-2">{{.}}</h3>
 {{end}}
-<div class="toc-row flex items-center pt-2">
+<div class="toc-row flex items-center">
 	{{- partial "tags.html" . -}}
 	{{ if .Params.toc }}
 	<button type="button" class="toc-clover" data-toc-toggle aria-expanded="true" aria-controls="toc-body"

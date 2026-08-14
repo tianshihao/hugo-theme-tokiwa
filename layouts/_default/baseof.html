@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="{{ $.Site.LanguageCode | default "en" }}">
+<html lang="{{ $.Site.Language.Locale | default "en" }}">
 {{ $oneScreen := partial "one-screen.html" . }}
 <head>
 	{{/* A first-level page (posts / tags / categories / series / about) is only
@@ -28,7 +28,7 @@
 	<META NAME="ROBOTS" CONTENT="NOINDEX, NOFOLLOW">
 	{{ end }}
 
-	{{ $stylesheet := .Site.Data.webpack_assets.app }}
+	{{ $stylesheet := hugo.Data.webpack_assets.app }}
 	{{ with $stylesheet.css }}
 	<link href="{{ relURL (printf "%s%s" "dist/" .) }}" rel="stylesheet">
 	{{ end }}
@@ -264,7 +264,7 @@
 	{{ if or .Params.math .Site.Params.math }}
 	{{ partial "math.html" . }}
 	{{ end }}
-	{{ if ne $.Site.LanguageCode "en"}}
+	{{ if ne $.Site.Language.Locale "en"}}
 	<!--pangu.js-->
 	<script>
 		(function (u, c) {

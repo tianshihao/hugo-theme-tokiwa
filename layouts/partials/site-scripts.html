@@ -1,4 +1,4 @@
-{{ $script := .Site.Data.webpack_assets.app }}
+{{ $script := hugo.Data.webpack_assets.app }}
 {{ with $script.js }}
 <script src="{{ relURL (printf "%s%s" "dist/" .) }}"></script>
 {{ end }}
@@ -2842,11 +2842,12 @@
 	(function () {
 		var desktop = window.matchMedia('(min-width: 768px)');
 		var tocWin = null;
+		var tocBody = null;
 		var links = [];
 		var activeLink = null;
 		var raf = 0;
 		var HEAD_OFFSET = 120; /* a heading becomes "current" once it crosses this line */
-		var GAP = 16;          /* breathing room between the TOC bottom and the aside top */
+		var ONE_LINE = 26;     /* one TOC entry ≈ 1.6 × 16px — below this the TOC auto-hides */
 
 		function hasToc() {
 			return desktop.matches &&
@@ -2854,13 +2855,10 @@
 				!!document.querySelector('article .c-rich-text');
 		}
 
-		/* cap the TOC to the space between its own top (the header is pinned, so
-		   this is its fixed position) and the aside's top, measured live. The
-		   "← Back" link (and its line) sit BELOW the TOC in the header, so that
-		   trailing strip is reserved for it first. The header is pinned via
-		   sticky on the <header> itself (its containing block runs to the
-		   document bottom), so there is no sticky clamp to fit inside — the
-		   aside is the only thing the TOC must not reach. */
+		/* cap the TOC so the ← Back link's bottom stays at least --header-gap
+		   above the aside's top (the header is pinned via sticky on the <header>,
+		   so the aside is the only thing to avoid). The "← Back" link and its
+		   line sit BELOW the TOC window; `after` reserves that strip first. */
 		function fitToc() {
 			if (!hasToc()) { return; }
 			tocWin = document.querySelector('.toc-content');
@@ -2869,6 +2867,7 @@
 			if (!headerInner || !aside) { return; }
 			var root = getComputedStyle(document.documentElement);
 			var asideGap = parseFloat(root.getPropertyValue('--aside-gap')) || 34;
+			var headerGap = parseFloat(root.getPropertyValue('--header-gap')) || 8;
 			var asideH = aside.offsetHeight;
 			var asideTop = window.innerHeight - asideGap - asideH;
 			var tocTop = tocWin.getBoundingClientRect().top;
@@ -2879,9 +2878,25 @@
 			if (after < 0) { after = 0; }
 			/* the rendered header can come out 1px taller than max-height
 			   (subpixel line-heights), so take 1px off the cap */
-			var maxH = (asideTop - tocTop - GAP - after) - 1;
-			if (maxH < 40) { maxH = 40; } /* keep a few links visible; the window scrolls */
+			var maxH = (asideTop - tocTop - after - headerGap) - 1;
+			if (maxH < ONE_LINE) {
+				/* the viewport is too short to show even one TOC entry: auto-hide
+				   it. This is a transient visual state only — the global open/
+				   close choice (and its persisted value) is left untouched, and
+				   if even the hidden header still overruns the aside that's
+				   accepted (no further handling). */
+				autoHideToc(true);
+				return;
+			}
+			autoHideToc(false);
 			tocWin.style.maxHeight = maxH + 'px';
+		}
+
+		/* transient auto-hide for very short viewports — does NOT touch the
+		   toc-open class or the persisted state, so the ☘ / za choice survives */
+		function autoHideToc(hide) {
+			if (!tocBody) { return; }
+			tocBody.classList.toggle('toc-autohide', hide);
 		}
 
 		function collect() {
@@ -2978,7 +2993,7 @@
 			   frame, which caps the height to exactly what fits. The header
 			   therefore never moves, wherever the page is. */
 			var tocToggle = document.querySelector('[data-toc-toggle]');
-			var tocBody = document.querySelector('[data-toc-body]');
+			tocBody = document.querySelector('[data-toc-body]');
 			var TOC_STATE_KEY = 'tokiwa.tocOpen';
 
 			/* shared open/close used by the ☘ click AND the za key. za is global:
