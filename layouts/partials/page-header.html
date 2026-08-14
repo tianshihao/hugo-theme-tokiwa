@@ -13,15 +13,18 @@
 {{with .Description}}
 <h3 class="text-java-700 font-normal leading-relaxed pt-2">{{.}}</h3>
 {{end}}
-<div class="flex flex-wrap justify-end pt-2 ">
+<div class="toc-row flex items-center pt-2">
 	{{- partial "tags.html" . -}}
+	{{ if .Params.toc }}
+	<button type="button" class="toc-clover" data-toc-toggle aria-expanded="true" aria-controls="toc-body"
+		title="Table of contents">☘︎</button>
+	{{ end }}
 	<time class="text-eucalyptus-500 md:text-right md:flex-grow font-serif font-light pl-4"
 		datetime="{{ .Date.Format "2006-01-02T15:04:05Z07:00" }}">
 		{{- .Date.Format (.Site.Params.PostDateFormat | default "2006-1-2 15:04") -}}
 	</time>
 </div>
 {{ partial "toc.html" . }}
-<hr />
 {{/* the article has no site nav — it keeps the TOC and a single back link
    (site-scripts' tokiwaArticleBack), which behaves exactly like pressing h:
    return to the page the article came from and restore the cursor there. */}}

@@ -1,104 +1,104 @@
 {{ if (.Params.toc) }}
-<details class="toc toc-relaxed" open>
-    <summary>
-        <hr />
-    </summary>
-    <div class="inline toc-content font-serif">
+<div id="toc-body" class="toc-body toc-open" data-toc-body>
+    <hr class="toc-line toc-line-top" />
+    <div class="toc-content font-serif">
         {{.TableOfContents}}
     </div>
-</details>
+    <hr class="toc-line toc-line-bottom" />
+</div>
 <style>
-    details.toc.toc-relaxed .toc-content nav li,
-    details.toc.toc-relaxed .toc-content nav li a {
-        line-height: 1.6 !important;
+    /* The shamrock sits in the MIDDLE of the tags/date row. The row (in
+       page-header.html) is a flex line where the tags and the date share the
+       space equally (both flex-grow), so the fixed-width ☘ lands exactly
+       centred: tags | ☘ | date, all on one line. The tags are kept on that
+       single line too (white-space: nowrap + ellipsis) — nobody writes a
+       novel's worth of tags. */
+    .toc-row > div {
+        flex: 1 1 0;
+        min-width: 0;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        text-align: left; /* override the header's inherited md:text-right so
+                             the tags stay flush left */
+        padding-right: 1rem; /* mirrors the date's pl-4 so the two sides are
+                                equal-width and the ☘ is exactly centred */
+    }
+    .toc-row > time {
+        flex: 1 1 0;
+        min-width: 0;
+        text-align: right;
+    }
+    .toc-clover {
+        flex: 0 0 auto;
+        background: none;
+        border: none;
+        padding: 0 0.6rem;
+        cursor: pointer;
+        color: #4eab90;   /* eucalyptus-400 — same teal as the footer ❧ */
+        font-family: serif;
+        font-size: 24px;
+        line-height: 1;
+    }
+    .toc-clover:hover {
+        color: #49beb7;
     }
 
-    details.toc.toc-relaxed>summary {
-        list-style: none;
-        cursor: default; /* the line itself is not clickable — only the ☘ toggles */
-    }
-    details.toc.toc-relaxed>summary.toc-near {
-        cursor: pointer; /* affordance while hovering near the shamrock */
-    }
-
-    details.toc.toc-relaxed>summary::-webkit-details-marker {
+    /* The TOC body is collapsed until the ☘ is clicked — the header row is
+       just tags | ☘ | date until you open the TOC. */
+    .toc-body:not(.toc-open) .toc-content {
         display: none;
     }
 
-    /* The divider is an animated line: drawn as a 1px background that grows
-       from / retracts to the centre (background-position: center) — opening
-       shoots it out of the ☘, closing reels it back in, the same
-       background-size sweep as the theme's link underlines. Collapsed, the
-       line is 0 wide and only the ☘ remains. */
-    details.toc.toc-relaxed hr {
+    /* The two divider lines frame the TOC: each is a 1px line that sweeps out
+       from the centre (background-size 0 → 100% at background-position center,
+       the same sweep as the theme's link underlines) while its box grows from
+       0 height — opening shoots both lines out of the ☘, closing reels them
+       back in. Collapsed they take no vertical space. */
+    .toc-line {
         position: relative;
         border: none;
-        height: 5px;
-        margin-top: 0.8em;
-        margin-bottom: 0.4em;
+        height: 0;
+        margin: 0;
         background-image: linear-gradient(#9acfbf, #9acfbf);
         background-repeat: no-repeat;
         background-position: center;
-        background-size: 100% 1px; /* open: full-width line */
-        transition: background-size 0.35s cubic-bezier(0, .5, 0, 1);
+        background-size: 0 1px;
+        transition: height 0.35s cubic-bezier(0, .5, 0, 1),
+                    margin 0.35s cubic-bezier(0, .5, 0, 1),
+                    background-size 0.35s cubic-bezier(0, .5, 0, 1);
     }
-    details.toc.toc-relaxed:not([open]) hr {
-        background-size: 0 1px; /* closed: line fully retracted, ☘ only */
-    }
-
-    /* The divider BELOW the TOC (between the TOC and the ← Back link) gets the
-       same animated line: it grows from the centre when the TOC opens and
-       reels back to the centre when it closes, so the two lines frame the TOC
-       symmetrically — the summary line above and this line below sweep out
-       from the middle together. Collapsed, it is 0 wide (invisible), leaving
-       only the ☘ and the Back link. The style block renders between the
-       details and the hr, so the bottom hr is a general (not adjacent)
-       sibling — hence `~ hr`. */
-    details.toc.toc-relaxed ~ hr {
-        position: relative;
-        border: none;
+    .toc-body.toc-open .toc-line {
         height: 5px;
-        margin-top: 0.4em;
-        margin-bottom: 0.8em;
-        background-image: linear-gradient(#9acfbf, #9acfbf);
-        background-repeat: no-repeat;
-        background-position: center;
-        background-size: 100% 1px; /* open: full-width line */
-        transition: background-size 0.35s cubic-bezier(0, .5, 0, 1);
-    }
-    details.toc.toc-relaxed:not([open]) ~ hr {
-        background-size: 0 1px; /* closed: line fully retracted */
+        margin: 0.4em 0;
+        background-size: 100% 1px;
     }
 
-    details.toc.toc-relaxed hr::after {
-        content: '\2618\FE0E'; /* ☘︎ shamrock + text-presentation selector (stays monochrome so it takes the teal) */
-        position: absolute;
-        left: 50%;
-        transform: translateX(-50%);
-        top: -7px;             /* the shamrock's leaf junction sits on the line */
-        padding: 0 0.5rem;
-        background: #f7fafc;   /* body bg → masks the line, which "breaks" around the ornament */
-        color: #4eab90;        /* eucalyptus-400 — same teal as the footer ❧ */
-        font-size: 18px;
-        line-height: 1;
-        pointer-events: none;
+    .toc-content nav li,
+    .toc-content nav li a {
+        line-height: 1.6 !important;
     }
 
     /* The TOC is a "window": its height is capped by JS to the live gap between
        its own top and the aside's top, so it never grows past the aside. The
-       content scrolls inside that window. display:block (it was inline, which
-       ignores max-height/overflow), and overscroll-behavior keeps a wheel over
-       the TOC from also scrolling the page underneath. */
-    details.toc.toc-relaxed .toc-content {
+       content scrolls inside that window (scrollbar hidden — wheel / trackpad /
+       the scrollspy all still scroll it, just no visible bar), and
+       overscroll-behavior keeps a wheel over the TOC from also scrolling the
+       page underneath. */
+    .toc-content {
         display: block;
         overflow-y: auto;
         overscroll-behavior: contain;
-        scrollbar-width: thin;
+        scrollbar-width: none;   /* Firefox */
+        -ms-overflow-style: none; /* legacy Edge/IE */
+    }
+    .toc-content::-webkit-scrollbar {
+        display: none;           /* Chromium / Safari */
     }
 
     /* The heading currently being read — same teal pill language as the
        vim-active highlights across the site. */
-    details.toc.toc-relaxed .toc-content nav a.toc-active {
+    .toc-content nav a.toc-active {
         color: #028760;
         background-color: rgba(2, 135, 96, 0.14);
         border-radius: 3px;

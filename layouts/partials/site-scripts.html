@@ -918,6 +918,8 @@
 	(function () {
 		var leader = false;
 		var leaderTimer = null;
+		var zLeader = false;    /* za = toggle the TOC (z-leader, like g-leader) */
+		var zLeaderTimer = null;
 		var routes = {
 			h: '/',             /* home */
 			p: '/posts/',       /* posts */
@@ -1824,6 +1826,12 @@
 			leaderTimer = null;
 		}
 
+		function resetZLeader() {
+			zLeader = false;
+			clearTimeout(zLeaderTimer);
+			zLeaderTimer = null;
+		}
+
 		/* ---- posts/home list cursor & vim mode ----------------------------
 		   visibleItems() / listCursor (the unified cursor over the posts & home
 		   rows) plus enterVim / exitVim — the vim-mode class switch, the
@@ -2341,6 +2349,7 @@
 
 			if (e.ctrlKey || e.metaKey || e.altKey) {
 				resetLeader();
+				resetZLeader();
 				return;
 			}
 
@@ -2373,11 +2382,34 @@
 				return;
 			}
 
+			/* za: toggle the TOC (z-leader). The state persists across articles
+			   in this tab, so the choice carries to the next article too. */
+			if (zLeader) {
+				resetZLeader();
+				if (key === 'a') {
+					e.preventDefault();
+					if (window.tokiwaToggleToc) {
+						window.tokiwaToggleToc();
+					}
+					return;
+				}
+				/* any other key after z just does its normal thing below */
+			}
+
 			/* lowercase g starts the leader (gg = first row); shift+G = last row */
 			if (rawKey === 'g' && !e.repeat) {
 				leader = true;
 				clearTimeout(leaderTimer);
 				leaderTimer = setTimeout(resetLeader, 1200);
+				e.preventDefault(); /* dead key until the second press */
+				return;
+			}
+
+			/* lowercase z starts the z-leader (za = toggle the TOC) */
+			if (rawKey === 'z' && !e.repeat) {
+				zLeader = true;
+				clearTimeout(zLeaderTimer);
+				zLeaderTimer = setTimeout(resetZLeader, 1200);
 				e.preventDefault(); /* dead key until the second press */
 				return;
 			}
@@ -2818,55 +2850,43 @@
 
 		function hasToc() {
 			return desktop.matches &&
-				!!document.querySelector('details.toc .toc-content') &&
+				!!document.querySelector('.toc-content') &&
 				!!document.querySelector('article .c-rich-text');
 		}
 
-		/* cap the TOC to the space between its own top (the header is sticky, so
-		   this is its pinned position) and the aside's top, measured live. The
-		   "← Back" link (and its hr) sit BELOW the TOC in the header, so that
-		   trailing strip is reserved for it first: the TOC gets everything from
-		   its top down to just above the back link, and the back link never
-		   slides into / covers the aside.
-		   The header is ALSO clamped by its sticky containing block — the <header>
-		   element, stretched to the article's height: at maximum scroll the whole
-		   header (TOC + back) must still fit between the pinned top and the
-		   containing block's bottom, or the browser pushes the header up and it
-		   jumps between gg (top) and G (bottom). That clamp is the tighter bound
-		   on long-TOC articles, so the TOC is capped by the min of the two. */
+		/* cap the TOC to the space between its own top (the header is pinned, so
+		   this is its fixed position) and the aside's top, measured live. The
+		   "← Back" link (and its line) sit BELOW the TOC in the header, so that
+		   trailing strip is reserved for it first. The header is pinned via
+		   sticky on the <header> itself (its containing block runs to the
+		   document bottom), so there is no sticky clamp to fit inside — the
+		   aside is the only thing the TOC must not reach. */
 		function fitToc() {
 			if (!hasToc()) { return; }
-			tocWin = document.querySelector('details.toc .toc-content');
+			tocWin = document.querySelector('.toc-content');
 			var headerInner = tocWin.closest('header > div');
-			var headerEl = tocWin.closest('header');
 			var aside = document.querySelector('[data-home-aside]');
-			if (!headerInner || !headerEl || !aside) { return; }
+			if (!headerInner || !aside) { return; }
 			var root = getComputedStyle(document.documentElement);
 			var asideGap = parseFloat(root.getPropertyValue('--aside-gap')) || 34;
 			var asideH = aside.offsetHeight;
 			var asideTop = window.innerHeight - asideGap - asideH;
 			var tocTop = tocWin.getBoundingClientRect().top;
-			/* trailing header space below the TOC window (the hr + back link),
-			   measured live so font loading / title wrapping is picked up */
+			/* trailing header space below the TOC window (the bottom line + the
+			   ← Back link), measured live so font loading / title wrapping is
+			   picked up */
 			var after = headerInner.getBoundingClientRect().bottom - tocWin.getBoundingClientRect().bottom;
 			if (after < 0) { after = 0; }
-			/* the containing block's bottom, translated to where it sits at
-			   maximum scroll (scroll-independent: current rect + scrollY − maxScroll) */
-			var maxScroll = Math.max(0, document.documentElement.scrollHeight - window.innerHeight);
-			var cbBottom = headerEl.getBoundingClientRect().bottom + window.scrollY - maxScroll;
-			var roomToAside = asideTop - tocTop - GAP - after;
-			var roomToClamp = cbBottom - tocTop - after;
 			/* the rendered header can come out 1px taller than max-height
-			   (subpixel line-heights), which at max scroll would push the
-			   sticky header up by that pixel — take 1px off so it never moves */
-			var maxH = Math.min(roomToAside, roomToClamp) - 1;
+			   (subpixel line-heights), so take 1px off the cap */
+			var maxH = (asideTop - tocTop - GAP - after) - 1;
 			if (maxH < 40) { maxH = 40; } /* keep a few links visible; the window scrolls */
 			tocWin.style.maxHeight = maxH + 'px';
 		}
 
 		function collect() {
 			if (!hasToc()) { return; }
-			tocWin = document.querySelector('details.toc .toc-content');
+			tocWin = document.querySelector('.toc-content');
 			var nav = tocWin.querySelector('nav#TableOfContents');
 			if (!nav) { return; }
 			links = [];
@@ -2879,7 +2899,10 @@
 			});
 		}
 
-		/* the last heading that crossed the reading line is the current one */
+		/* the last heading that crossed the reading line is the current one.
+		   Before the first heading has crossed it (at the very top / while
+		   reading the intro), the first heading is current — so gg always has
+		   something highlighted. */
 		function currentLink() {
 			var cur = null;
 			for (var i = 0; i < links.length; i++) {
@@ -2888,6 +2911,9 @@
 				} else {
 					break;
 				}
+			}
+			if (!cur && links.length) {
+				cur = links[0];
 			}
 			return cur;
 		}
@@ -2951,47 +2977,41 @@
 			   header can't grow past anything — then re-fit on the next
 			   frame, which caps the height to exactly what fits. The header
 			   therefore never moves, wherever the page is. */
-			var tocDetails = document.querySelector('details.toc.toc-relaxed');
-			if (tocDetails && desktop.matches) {
-				tocDetails.addEventListener('toggle', function () {
-					if (!tocDetails.open) { return; }
-					var win = tocDetails.querySelector('.toc-content');
-					if (win) { win.style.maxHeight = '0px'; }
-					requestAnimationFrame(function () {
-						fitToc();
-						update();
-					});
+			var tocToggle = document.querySelector('[data-toc-toggle]');
+			var tocBody = document.querySelector('[data-toc-body]');
+			var TOC_STATE_KEY = 'tokiwa.tocOpen';
+
+			/* shared open/close used by the ☘ click AND the za key. za is global:
+			   the state is persisted (sessionStorage) so it carries to the next
+			   article in this tab. */
+			function setToc(open) {
+				if (!tocBody) { return; }
+				var nowOpen = tocBody.classList.toggle('toc-open', open);
+				if (tocToggle) { tocToggle.setAttribute('aria-expanded', nowOpen ? 'true' : 'false'); }
+				try { sessionStorage.setItem(TOC_STATE_KEY, nowOpen ? '1' : '0'); } catch (err) {}
+				if (!nowOpen || !desktop.matches) { return; }
+				var win = tocBody.querySelector('.toc-content');
+				if (win) { win.style.maxHeight = '0px'; }
+				requestAnimationFrame(function () {
+					fitToc();
+					update();
 				});
 			}
-		}
-	})();
+			function toggleToc() {
+				setToc(!(tocBody && tocBody.classList.contains('toc-open')));
+			}
+			window.tokiwaToggleToc = toggleToc;
 
-	/* ---- TOC divider toggle: only the ☘ opens / closes --------------------
-	   The TOC's top divider (the <details> summary) is the collapse control,
-	   but clicking the line itself does nothing — only a click near the
-	   centred ☘ toggles. The line itself animates via the [open] CSS
-	   transition (grows from / retracts to the centre, like the theme's link
-	   underlines), and hovering near the ☘ shows a pointer cursor as
-	   affordance. */
-	(function () {
-		var details = document.querySelector('details.toc.toc-relaxed');
-		if (!details) { return; }
-		var summary = details.querySelector('summary');
-		if (!summary) { return; }
-		var HIT = 46; /* px either side of the centre that counts as "near the ☘" */
-		var nearShroom = function (x) {
-			var r = summary.getBoundingClientRect();
-			return Math.abs(x - (r.left + r.width / 2)) <= HIT;
-		};
-		summary.addEventListener('click', function (e) {
-			/* preventDefault on the summary stops the native details toggle */
-			if (!nearShroom(e.clientX)) { e.preventDefault(); }
-		});
-		summary.addEventListener('mousemove', function (e) {
-			summary.classList.toggle('toc-near', nearShroom(e.clientX));
-		});
-		summary.addEventListener('mouseleave', function () {
-			summary.classList.remove('toc-near');
-		});
+			if (tocToggle) {
+				tocToggle.addEventListener('click', toggleToc);
+			}
+			if (tocBody) {
+				/* the TOC defaults to open (HTML has toc-open); restore a
+				   za-persisted state if the user last closed it */
+				var saved = null;
+				try { saved = sessionStorage.getItem(TOC_STATE_KEY); } catch (err) {}
+				if (saved === '0') { setToc(false); }
+			}
+		}
 	})();
 </script>
