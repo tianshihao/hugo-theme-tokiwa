@@ -79,6 +79,29 @@
 			aside[data-home-aside] { bottom: var(--aside-gap) !important; }
 		}
 
+		/* Mobile (below md): the aside stacks under the footer with no breathing
+		   room and its content hugs the left — center it and push it clear of
+		   the footer. The article header date also loses its right alignment on
+		   toc=false posts (the toc partial's <style>, which right-aligns it,
+		   only renders when the post has a TOC). All scoped to <768px, so the
+		   desktop sticky two-column layout is untouched. */
+		@media (max-width: 767px) {
+			aside[data-home-aside] {
+				margin-top: 2rem;   /* breathing room below the footer */
+				text-align: center; /* center the copyright / text content */
+			}
+			aside[data-home-aside] .flex.flex-col {
+				align-items: center; /* center the aside's stacked blocks */
+			}
+			aside[data-home-aside] .flex.flex-wrap-reverse {
+				justify-content: center; /* center the social icon row */
+			}
+			.toc-row > time {
+				flex: 1 1 0;
+				text-align: right; /* pin the header date to the right */
+			}
+		}
+
 		/* One shared type system across the posts archive and the taxonomy pages:
 		   --list-line-height is the natural rhythm of the 1rem list/title text
 		   (16px × 1.625 = 26px), and --label-font-size is derived by JS so the
@@ -684,13 +707,13 @@
 		}
 
 		/* Article list bullets: replace the compiled scss's default black square
-		   (list-style-position: inside — ugly, drifts off the text and sits far
-		   from it) with the theme's soft teal dot. Each dot is drawn on the
-		   item's first line and vertically centred on it, and hangs just left of
-		   the text (the text itself stays flush with paragraphs). */
+		   (list-style-position: inside — ugly, drifts off the text) with the
+		   theme's soft teal dot. The list stays INSIDE the body column — the dot
+		   sits at the text column's left edge and the text indents a little
+		   after it, so nothing protrudes past the body text. */
 		.c-rich-text ul {
 			list-style: none;
-			padding-left: 0;
+			padding-left: 0.9rem; /* room for the dot inside the body column */
 		}
 		.c-rich-text ul > li {
 			position: relative;
@@ -698,12 +721,24 @@
 		.c-rich-text ul > li::before {
 			content: "";
 			position: absolute;
-			left: -0.75rem; /* 12px left of the text start → ≈6px gap to the dot */
-			top: 0.6em;     /* centre the dot on the first line (0.4em dot) */
+			left: -0.9rem; /* back to the column's left edge (not beyond it) */
+			top: 0.6em;    /* centre the dot on the first line (0.4em dot) */
 			width: 0.4em;
 			height: 0.4em;
 			border-radius: 50%;
 			background: #4eab90; /* eucalyptus-400, the theme's teal */
+		}
+
+		/* Blockquotes sit flush with the body text — the compiled scss insets
+		   them with ml-8 + pl-3 + pr-6 (left margin/padding + right padding).
+		   Remove the indentation so the quote spans the same column as the body;
+		   the thin left border stays as the only quote marker, with a clear gap
+		   between the line and the text to keep the quote reading as a quote. */
+		.c-rich-text blockquote {
+			margin-left: 0;
+			margin-right: 0;
+			padding-left: 1rem;
+			padding-right: 0;
 		}
 
 		/* The aside's RSS icon copies the feed to the clipboard on click (it is

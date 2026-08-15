@@ -2489,18 +2489,29 @@
 					navEnter();
 				}
 			} else if (e.code === 'Comma' || e.code === 'Period') {
-				/* page back / forward (home & posts pager). Matched on the PHYSICAL
-				   key (e.code), not e.key: with a Chinese IME active, the , and .
-				   keys emit ，。 through e.key, which would never match. e.code
-				   reports the keyboard position regardless of IME. */
-				var pager = document.querySelector('[data-home-pager]');
+				/* prev / next navigation. On an ARTICLE, ，/。 move between the
+				   previous/next posts — the footer's left/right arrows, which thread
+				   the articles in date order like a threaded tree's leaves (，/,
+				   = older, 。/. = newer). On home & posts the same physical keys
+				   page the pager instead. Matched on the PHYSICAL key (e.code), not
+				   e.key: with a Chinese IME active the , and . keys emit ，。 through
+				   e.key, which would never match; e.code reports the keyboard
+				   position regardless of IME. */
 				var dir = e.code === 'Comma' ? 'prev' : 'next';
-				var pageLink = pager ? pager.querySelector('[data-home-' + dir + ']') : null;
-				var pageLi = pageLink ? pageLink.closest('li') : null;
-				if (pageLink && pageLi && !pageLi.classList.contains('disabled')) {
+				var articleLink = document.querySelector('[data-article-' + dir + ']');
+				if (articleLink) {
 					e.preventDefault();
 					enterVim();
-					pageLink.click();
+					articleLink.click();
+				} else {
+					var pager = document.querySelector('[data-home-pager]');
+					var pageLink = pager ? pager.querySelector('[data-home-' + dir + ']') : null;
+					var pageLi = pageLink ? pageLink.closest('li') : null;
+					if (pageLink && pageLi && !pageLi.classList.contains('disabled')) {
+						e.preventDefault();
+						enterVim();
+						pageLink.click();
+					}
 				}
 			} else if (key === '/' && !inNav()) { /* focus the site search box */
 				e.preventDefault();
