@@ -35,13 +35,13 @@
         border: none;
         padding: 0 0.6rem;
         cursor: pointer;
-        color: #4eab90;   /* eucalyptus-400 — same teal as the footer ❧ */
+        color: var(--eucalyptus-400);   /* eucalyptus-400 — same teal as the footer ❧ */
         font-family: serif;
         font-size: 24px;
         line-height: 1;
     }
     .toc-clover:hover {
-        color: #49beb7;
+        color: var(--teal-hover);
     }
 
     /* Every time the TOC toggles (☘ click or za) the shamrock spins a few
@@ -118,7 +118,7 @@
         border: none;
         height: 0;
         margin: 0;
-        background-image: linear-gradient(#9acfbf, #9acfbf);
+        background-image: linear-gradient(var(--eucalyptus-300), var(--eucalyptus-300));
         background-repeat: no-repeat;
         background-position: center;
         background-size: 0 1px;
@@ -169,8 +169,8 @@
     /* The heading currently being read — same teal pill language as the
        vim-active highlights across the site. */
     .toc-content nav a.toc-active {
-        color: #028760;
-        background-color: rgba(2, 135, 96, 0.14);
+        color: var(--eucalyptus-600);
+        background-color: var(--highlight);
         border-radius: 3px;
     }
 </style>

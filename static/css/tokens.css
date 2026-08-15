@@ -1,0 +1,55 @@
+/* ==========================================================================
+   tokiwa design tokens — the single source of theme colors.
+
+   Every color is defined once here with a name and referenced everywhere via
+   var(). Naming rules:
+     - Colors that already had a name keep it (eucalyptus-*, gray-*, red-*,
+       medium-red-violet-*).
+     - Colors without a prior name get a functional name (--teal-*, --color-*).
+   Interactive/content colors come in NORMAL <-> HIGHLIGHT pairs (link,
+   tag); vim highlight is a separate translucent pair. Prefer the more
+   specific token when writing new styles.
+
+   Merged into --teal-pale: old slate-300 (#CBD5E0) — borders now share the
+   pale-teal tint, so slate-300 is gone from the palette.
+   ========================================================================== */
+:root {
+  /* ---- neutrals ---- */
+  --color-bg:         #F7FAFC;  /* page background (gray-50) */
+  --color-surface:    #FFFFFF;  /* cards / white */
+  --color-text:       #4A5568;  /* body text (gray-700) */
+  --color-text-muted: #718096;  /* secondary text (gray-600) */
+  --color-text-faint: #A0AEC0;  /* placeholder (gray-400) */
+  --color-gray-100:   #EDF2F7;  /* light gray surface */
+  --color-heading:    #01513A;  /* headings — deep green */
+
+  /* ---- eucalyptus teal (original scale names) ---- */
+  --eucalyptus-300:   #9ACFBF;
+  --eucalyptus-400:   #4EAB90;
+  --eucalyptus-600:   #028760;
+
+  /* ---- extended teal (functional names) ---- */
+  --teal-hover:       #49BEB7;  /* hover states */
+  --teal-dark:        #2C726E;  /* dark teal text */
+  --teal-pale:        #B6E5E2;  /* borders + inline-code tint (absorbs slate-300) */
+  --teal-faint:       #EDF9F8;  /* very pale teal background */
+
+  /* ---- accents ---- */
+  --medium-red-violet-600: #B23B83; /* tag underline */
+  --medium-red-violet-400: #D77AB2; /* tag underline hover */
+  --red-600:            #DC2626;    /* failed state */
+  --focus-ring:         rgba(59, 130, 246, .5); /* focus outline */
+
+  /* ---- vim highlight tints (translucent eucalyptus-600) ---- */
+  --highlight-soft:     rgba(2, 135, 96, 0.07); /* j/k list & card cursor overlay */
+  --highlight:          rgba(2, 135, 96, 0.14); /* tag / preview / nav / TOC pill */
+
+  /* ---- layout tokens: article list rhythm (ul dots & ol numbers) ---- */
+  --list-gutter:        0.9rem; /* ul/ol text indent; the symbols live in this gutter */
+  --list-symbol-size:   0.4em;  /* ul dot diameter; the ol number's right edge aligns
+                                   to the dot's right edge, so number↔text gap == dot↔text gap */
+}
+
+/* ---- code containers (per params.codeScheme) ---- */
+body.code-quiet-light     { --code-bg: #F5F5F5; --code-fg: #333333; }
+body.code-night-owl-light { --code-bg: #FBFBFB; --code-fg: #403F53; }

@@ -13,6 +13,17 @@ such a change, stop and reconsider.
   sets `font-size = (2 × --list-line-height) / ratio`, so the label glyph is
   **exactly two list lines tall**. Shared by the posts year label and the tags
   drop-cap label.
+- `--list-gutter: 0.9rem` — article `ul`/`ol` text indent; the list symbols
+  (the teal dot for `ul`, the teal counter for `ol`) live in this gutter.
+- `--list-symbol-size: 0.4em` — the `ul` dot's diameter; the `ol` counter is
+  right-aligned in a box that is **2× the gutter wide** so its right edge lands
+  exactly where the dot's right edge does. (Why wide? `text-align` only aligns
+  lines that FIT the box — overflowing lines spill from the start edge (CSS
+  spec), which is what made the period hug the text before. See `baseof.html`.)
+- **INVARIANT — list symbol↔text gap is unified.** The `ol` number↔text gap
+  equals the `ul` dot↔text gap, both `--list-gutter − --list-symbol-size`
+  (≈ 8px). Both lists are defined in `baseof.html` from the same two tokens;
+  never give one list a different gutter or symbol size.
 
 ## 2. The drop-cap tag (taxonomy cards)
 
@@ -23,13 +34,9 @@ such a change, stop and reconsider.
   deliberate: font-metric drift would otherwise let the float indent the third
   title line.
 - Long tags are truncated whole-character with a custom "…" (JS), never shrunk.
-- **The teal vim pill is this same 2-line label box** — the pill's size is
-  always the label's line box (glyph + symmetric ~8px leading = 52px), never
-  the card's highlight box. It is a background on the label link, so its height
-  IS the label's line box. It only translates (see §5); it is never resized to
-  match the highlight. This symmetry (equal ~8px leading above and below the
-  glyph) is what keeps the pill reading as "the label + padding", so a pill
-  that is taller than the label's line box is a regression.
+- **The teal vim pill is this same 2-line label box** (sized by the label's
+  line box — glyph + symmetric ~8px leading — never the card's highlight box).
+  It only translates; it is never resized. Full pill invariant in §5.
 
 ## 3. Divider rhythm
 
@@ -284,12 +291,12 @@ the code, not just the design: all four panes run the **same cursor engine**
 (`makeCursor` in `site-scripts.html`), differing only in `items()` (where the
 siblings come from) and `onSelect()` (how the highlight is painted):
 
-| pane         | items()                                  | highlight        |
-|--------------|------------------------------------------|------------------|
-| site nav     | `navItems()` (cached, re-query if empty) | pill             |
-| posts list   | `visibleItems()` (live)                  | measured overlay |
-| cards        | `taxCards()` (live)                      | measured overlay |
-| card previews| `taxPreviews(active card)` (live)        | — (card box only) |
+| pane          | items()                                  | highlight         |
+| ------------- | ---------------------------------------- | ----------------- |
+| site nav      | `navItems()` (cached, re-query if empty) | pill              |
+| posts list    | `visibleItems()` (live)                  | measured overlay  |
+| cards         | `taxCards()` (live)                      | measured overlay  |
+| card previews | `taxPreviews(active card)` (live)        | — (card box only) |
 
 `move` / `jump` / `enter` / `clear` are shared and cannot drift apart: first
 press starts at the top, edges clamp (an already-at-edge press is a no-op that
@@ -407,9 +414,9 @@ home-pager. It lives as the baseof default, gated by the shared
 override the block: article → `page-footer` (prev/next + related + disqus, where
 the disqus separator line + container are gated on `disqusShortname` so an
 unconfigured site never shows two stacked `<hr />`s, and there is **no trailing
-closing line** — the footer's content reaches its own bottom edge, so the shell's
-`padding-bottom: var(--aside-gap)` puts the footer's bottom at the same 34px gap
-as the aside), generic list → `pagination`, about (`layouts/about/list.html`) →
+closing line** — the footer's content reaches its own bottom edge, so its
+bottom sits at `--aside-gap` (the shell's `padding-bottom`; see §8), generic
+list → `pagination`, about (`layouts/about/list.html`) →
 a non-empty override rendering nothing — About is a fixed one-screen page with
 **no footer**. Taxonomy overview (`terms.html`) renders nothing (the one-screen
 condition is false; an *empty* `define "footer"` does **not** override a
@@ -430,6 +437,16 @@ lift — the period dots sit on the text baseline while digits rise above it, so
 the dots' ink center is ~0.25em lower; lifting them puts the ellipsis on the
 digits' optical center. The `data-home-pager-hr` top line and the arrow SVGs
 are the design constants — never restyle or move them.
+
+**Article footer prev/next (`page-footer.html`):** the two anchors sit in a
+`flex justify-between` row, each wrapped in an **always-present** `div` — a
+missing neighbour renders an **empty box** on that side instead of collapsing,
+so `justify-between` always pins the `data-article-prev` box to the far left
+and the `data-article-next` box to the far right. The first (newest) article
+shows only the left prev arrow at the left; the last (oldest) article shows
+only the right next arrow at the right. Never merge the two wrappers back into
+direct children of the flex row — a lone flex child loses the side it belongs
+to.
 
 **When the ellipsis appears** (`buildNumberButtons()`): the pager may occupy
 at most `MAX_SLOTS` number slots (including ellipsis placeholders), and the cap
@@ -509,3 +526,138 @@ request this hides **all** h1 in the body (sections also written with `#` are
 h1 too and are hidden as well); `##`-level headings are untouched. The rule is
 scoped to `.is-article .c-rich-text`, so list / taxonomy / about pages keep
 their own headings.
+
+## 9. Color system — design tokens
+
+Every color the theme uses is defined **once, by name**, in
+`static/css/tokens.css` (`:root { --<name>: <value> }`) and referenced
+everywhere as `var(--<name>)`. There are no stray hex/rgb literals left in the
+templates or stylesheets (the only exceptions are functional shadows
+`rgba(0,0,0,.05/.1)` and `transparent`).
+
+**Naming**: colors that already had a name keep it — `--eucalyptus-300/400/600`,
+`--gray-*`, `--red-600`, `--medium-red-violet-400/600`. Colors without a
+prior name got functional names: `--teal-hover`, `--teal-dark`, `--teal-pale`,
+`--teal-faint`, `--color-*`.
+
+The full palette, grouped by **where each color appears** (scenario). Each
+table lists: the original scale name it came from (if any) · the design token ·
+the hex value · what it is used for.
+
+> **Pairing model.** Interactive colors come in NORMAL ↔ HIGHLIGHT pairs —
+> the link pair (9.3) and the magenta pair (9.6). Vim highlight is a separate
+> translucent pair (9.8). Scale/functional colors (decorative, borders,
+> backgrounds, text hierarchy, status) are not pairs. A token with zero
+> `var()` references is dead — delete it.
+
+#### 9.1 Page chrome — backgrounds & surface
+
+| Original | Token              | Hex       | Use                |
+| -------- | ------------------ | --------- | ------------------ |
+| gray-50  | `--color-bg`       | `#F7FAFC` | page background    |
+| white    | `--color-surface`  | `#FFFFFF` | cards / white      |
+| gray-100 | `--color-gray-100` | `#EDF2F7` | light gray surface |
+
+#### 9.2 Text hierarchy
+
+| Original   | Token                | Hex       | Use                         |
+| ---------- | -------------------- | --------- | --------------------------- |
+| gray-700   | `--color-text`       | `#4A5568` | body text                   |
+| gray-600   | `--color-text-muted` | `#718096` | secondary text              |
+| gray-400   | `--color-text-faint` | `#A0AEC0` | placeholder                 |
+| — (custom) | `--color-heading`    | `#01513A` | h1/h2 headings (deep green) |
+
+#### 9.3 Eucalyptus teal — link pair (NORMAL ↔ HIGHLIGHT)
+
+| Original       | Token              | Hex       | Use                                                            |
+| -------------- | ------------------ | --------- | -------------------------------------------------------------- |
+| eucalyptus-600 | `--eucalyptus-600` | `#028760` | **link normal**, emphasis, strong/b, tag underline, RSS copied |
+| —              | `--teal-hover`     | `#49BEB7` | **link hover/focus**, table borders, placeholder, clover hover |
+
+#### 9.4 Eucalyptus teal — decorative scale
+
+| Original       | Token              | Hex       | Use                                                            |
+| -------------- | ------------------ | --------- | -------------------------------------------------------------- |
+| eucalyptus-400 | `--eucalyptus-400` | `#4EAB90` | ❧ separator, list bullets, TOC, labels                         |
+| eucalyptus-300 | `--eucalyptus-300` | `#9ACFBF` | dividers (hr, tag divider), pagination active, gradients       |
+| —              | `--teal-pale`      | `#B6E5E2` | borders + inline-code tint (**absorbs old slate-300 #CBD5E0**) |
+
+#### 9.5 Text selection
+
+| Original  | Token          | Hex       | Use                                                       |
+| --------- | -------------- | --------- | --------------------------------------------------------- |
+| java-700  | `--teal-dark`  | `#2C726E` | `::selection` background (behind selected text)           |
+| java-100* | `--teal-faint` | `#EDF9F8` | `::selection` text color (also the pale teal tint in 9.1) |
+
+\* `java-100` appears in a theme comment only; no utility class is generated for it.
+
+#### 9.6 Magenta pair (NORMAL ↔ HIGHLIGHT) — current page / tag / vim descent
+
+| Original              | Token                     | Hex       | Use                                                                                |
+| --------------------- | ------------------------- | --------- | ---------------------------------------------------------------------------------- |
+| medium-red-violet-600 | `--medium-red-violet-600` | `#B23B83` | **normal**: category links, current-page nav (JS), vim parent label, tag underline |
+| medium-red-violet-400 | `--medium-red-violet-400` | `#D77AB2` | **hover**: category links hover, index decoration line                             |
+
+#### 9.7 Status
+
+| Original | Token          | Hex                   | Use                                           |
+| -------- | -------------- | --------------------- | --------------------------------------------- |
+| red-600  | `--red-600`    | `#DC2626`             | RSS copy **failed** state (the only true red) |
+| blue-500 | `--focus-ring` | `rgba(59,130,246,.5)` | focus outline                                 |
+
+#### 9.8 Vim highlight — translucent, separate pair
+
+| Original             | Token              | Value                | Use                            |
+| -------------------- | ------------------ | -------------------- | ------------------------------ |
+| eucalyptus-600 @ 7%  | `--highlight-soft` | `rgba(2,135,96,.07)` | j/k list & card cursor overlay |
+| eucalyptus-600 @ 14% | `--highlight`      | `rgba(2,135,96,.14)` | tag / preview / nav / TOC pill |
+
+#### 9.9 Code containers (per `params.codeScheme`)
+
+| Scheme          | Token                     | Value                 | Use                          |
+| --------------- | ------------------------- | --------------------- | ---------------------------- |
+| quiet-light     | `--code-bg` / `--code-fg` | `#F5F5F5` / `#333333` | code block background / text |
+| night-owl-light | `--code-bg` / `--code-fg` | `#FBFBFB` / `#403F53` | code block background / text |
+
+`pre.tm-code` uses `var(--code-bg)/var(--code-fg)`. The token *colors inside*
+the code (keywords, strings…) come from the VS Code theme JSONs — not from
+these tokens (see §10).
+
+> **INVARIANT — vim highlight is translucent.** The vim cursor and pills must
+> keep their alpha (`--highlight-soft` 7%, `--highlight` 14%) so the text shows
+> through. A tokenizer once flattened them to the solid `--eucalyptus-600` and
+> the whole vim highlight turned solid — never replace a translucent token with
+> a solid one.
+
+**Consolidation**: three near-duplicate, low-use colors were merged into their
+nearest palette member: `#027A56→#028760`, `#80D2CD→#9ACFBF`,
+`#42ABA5→#49BEB7`; and `slate-300 #CBD5E0→#B6E5E2` (now `--teal-pale`). The
+eucalyptus scale is 300/400/600 — 500 was an identical alias and is removed.
+
+**Remaining near-pairs (kept — different roles, but visually close):**
+- `--eucalyptus-300` (`#9ACFBF`, dividers) vs `--teal-pale` (`#B6E5E2`, borders)
+  — two light teals, both used on hairlines.
+- `--color-heading` (`#01513A`, headings) vs `--teal-dark` (`#2C726E`, selection)
+  — two dark green-teals.
+
+> **Caveat — `static/dist/app.css` is a build artifact.** It was post-processed
+> in place to use the tokens, but it is generated by the theme's webpack/Tailwind
+> build. Rebuilding the theme regenerates it with raw values; re-run the
+> tokenizer in that case. The hand-written source of truth is `tokens.css` +
+> the templates.
+
+## 10. Code syntax colors — VS Code themes
+
+The colors *inside* code blocks (keywords, strings, numbers, comments…) are
+**not** §9 tokens. They come from the real VS Code color themes — same grammar
++ same theme files + same resolution VS Code uses:
+
+- Theme files: `static/lib/quiet-light.json`, `static/lib/night-owl-light.json`
+  (the actual VS Code theme JSONs; pick one with `params.codeScheme`).
+- Grammar: `static/lib/cpp.tmLanguage.json` (+ bash / python / cmake / x86_64
+  in the same dir, listed in `static/lib/grammars.json`).
+- Engine: `static/js/tm-highlight.min.js` — `vscode-textmate` tokenizes in the
+  browser and resolves each token's scopes against the theme's `tokenColors`
+  (most specific scope first, longest rule wins, later identical rule wins).
+- Code blocks are emitted raw by `layouts/_default/_markup/render-codeblock.html`
+  (`<pre class="tm-code" data-lang>`) and coloured by the engine at runtime.

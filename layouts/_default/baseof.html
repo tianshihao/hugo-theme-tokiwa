@@ -41,6 +41,9 @@
 	<META NAME="ROBOTS" CONTENT="NOINDEX, NOFOLLOW">
 	{{ end }}
 
+	{{/* Design tokens (named colors) must load before any stylesheet that uses var(--*) */}}
+	<link rel="stylesheet" href="{{ relURL "css/tokens.css" }}">
+
 	{{ $stylesheet := hugo.Data.webpack_assets.app }}
 	{{ with $stylesheet.css }}
 	<link href="{{ relURL (printf "%s%s" "dist/" .) }}" rel="stylesheet">
@@ -57,12 +60,12 @@
 		   the default blue. Same java-700 bg + java-100 text as the article
 		   body's existing selection, so the whole site reads consistently. */
 		::selection {
-			background-color: #2c726e; /* java-700 */
-			color: #edf9f8;            /* java-100 */
+			background-color: var(--teal-dark); /* java-700 */
+			color: var(--teal-faint);            /* java-100 */
 		}
 		::-moz-selection {
-			background-color: #2c726e;
-			color: #edf9f8;
+			background-color: var(--teal-dark);
+			color: var(--teal-faint);
 		}
 
 		:root {
@@ -180,7 +183,7 @@
 		[data-home-archive-divider],
 		[data-home-tag-divider] {
 			height: 0;
-			border-top: 1px solid #9acfbf;
+			border-top: 1px solid var(--eucalyptus-300);
 			margin: 8px 0; /* symmetric so the year/item sits centered between lines */
 		}
 		[data-home-archive-divider] {
@@ -219,7 +222,7 @@
 			line-height: calc(2 * var(--list-line-height));
 			height: calc(2 * var(--list-line-height) - 1px);
 			white-space: nowrap;
-			color: #028760; /* ellipsis + any non-link text use the link's teal */
+			color: var(--eucalyptus-600); /* ellipsis + any non-link text use the link's teal */
 			/* small gap between the tag and the titles on its right (kept close
 			   to the tag, slightly larger than the 3px to the third line) */
 			padding-right: 14px;
@@ -255,7 +258,7 @@
 		   sweep with a CSS custom property instead; the color still follows the
 		   link's teal text color (and its hover tone). */
 		[data-home-tag-name] a {
-			--tag-underline: #028760;
+			--tag-underline: var(--eucalyptus-600);
 			background-image: linear-gradient(var(--tag-underline), var(--tag-underline));
 			background-size: 0 2px;
 			background-position: 0 100%;
@@ -265,7 +268,7 @@
 		[data-home-tag-name] a:hover,
 		[data-home-tag-name] a:focus {
 			background-size: 100% 2px;
-			--tag-underline: #49beb7;
+			--tag-underline: var(--teal-hover);
 		}
 
 		/* the .pin cards carry 5px padding from the theme; drop it entirely so the
@@ -496,7 +499,7 @@
 			line-height: 1;
 		}
 		body.home-one-screen [data-home-pages] > li.page-item.disabled {
-			color: #028760;
+			color: var(--eucalyptus-600);
 			transform: translateY(-0.25em);
 		}
 
@@ -527,7 +530,7 @@
 			bottom: var(--hl-bottom, 4px);
 			left: 0;
 			right: 0;
-			background: rgba(2, 135, 96, 0.07);
+			background: var(--highlight-soft);
 			border-radius: 8px;
 			pointer-events: none;
 		}
@@ -548,7 +551,7 @@
 			bottom: var(--hl-bottom, 4px);
 			left: 0;
 			right: 0;
-			background: rgba(2, 135, 96, 0.07);
+			background: var(--highlight-soft);
 			border-radius: 8px;
 			pointer-events: none;
 		}
@@ -561,11 +564,11 @@
 		   the cursor is on it. */
 		.waterfall .pin.vim-active [data-home-tag-name] a,
 		[data-taxonomy-cards] > section.vim-active [data-home-tag-name] a {
-			background-color: rgba(2, 135, 96, 0.14);
+			background-color: var(--highlight);
 			border-radius: 3px;
 		}
 		.tag-card-titles a.vim-active {
-			background-color: rgba(2, 135, 96, 0.14);
+			background-color: var(--highlight);
 			border-radius: 3px;
 		}
 		/* the site navigation link currently focused (after h enters the nav).
@@ -573,9 +576,9 @@
 		   the h1, outside [data-site-nav], so it needs its own selector. */
 		body.vim-nav [data-site-nav] a.vim-active,
 		body.vim-nav [data-site-title].vim-active {
-			background-color: rgba(2, 135, 96, 0.14);
+			background-color: var(--highlight);
 			border-radius: 3px;
-			color: #028760;
+			color: var(--eucalyptus-600);
 		}
 
 		/* Only l to the NEXT layer turns the PREVIOUS layer's font purple-red
@@ -586,8 +589,8 @@
 		.waterfall .pin.preview-open [data-home-tag-name] a,
 		[data-taxonomy-cards] > section.preview-open [data-home-tag-name] a {
 			background-color: transparent;
-			color: rgb(178, 59, 131); /* medium-red-violet-600 */
-			--tag-underline: rgb(178, 59, 131);
+			color: var(--medium-red-violet-600); /* medium-red-violet-600 */
+			--tag-underline: var(--medium-red-violet-600);
 		}
 
 		/* vim mode remembers its state even while the mouse is used: the mouse is
@@ -686,8 +689,8 @@
 		   (block + auto horizontal margins — applies to all .c-rich-text img,
 		   whether or not site-scripts wrapped it in figure.c-figure), and the
 		   alt-text caption under it is centered too. Color: eucalyptus-400
-		   (#4eab90), the theme's teal at its label/divider weight (next to the
-		   #9acfbf divider lines and the year/tag labels), so the caption reads
+		   (var(--eucalyptus-400)), the theme's teal at its label/divider weight (next to the
+		   var(--eucalyptus-300) divider lines and the year/tag labels), so the caption reads
 		   as a figure label, not content. The figure inherits the
 		   c-rich-text > * + * 1.5rem rhythm — no extra margin set (Tailwind
 		   preflight already zeroes <figure>). */
@@ -700,19 +703,20 @@
 			font-family: "Source Han Serif SC", "Source Han Serif CN", "Noto Serif CJK SC", serif;
 			font-size: 0.8125rem;
 			line-height: 1.6;
-			color: #4eab90; /* eucalyptus-400 */
+			color: var(--eucalyptus-400); /* eucalyptus-400 */
 			text-align: center;
 			margin-top: 0.5rem;
 		}
 
-		/* Article list bullets: replace the compiled scss's default black square
-		   (list-style-position: inside — ugly, drifts off the text) with the
-		   theme's soft teal dot. The list stays INSIDE the body column — the dot
-		   sits at the text column's left edge and the text indents a little
-		   after it, so nothing protrudes past the body text. */
+		/* Article list bullets + numbers: replace the compiled scss's default
+		   black markers (list-style-position: inside — ugly, drifts off the
+		   text) with the theme's soft teal dot (ul) / teal counter (ol). Both
+		   symbols sit in the same --list-gutter at the column's left edge, and
+		   the ol number's right edge aligns to the ul dot's right edge
+		   (--list-symbol-size), so number↔text gap == dot↔text gap. */
 		.c-rich-text ul {
 			list-style: none;
-			padding-left: 0.9rem; /* room for the dot inside the body column */
+			padding-left: var(--list-gutter); /* room for the dot inside the body column */
 		}
 		.c-rich-text ul > li {
 			position: relative;
@@ -720,12 +724,41 @@
 		.c-rich-text ul > li::before {
 			content: "";
 			position: absolute;
-			left: -0.9rem; /* back to the column's left edge (not beyond it) */
-			top: 0.6em;    /* centre the dot on the first line (0.4em dot) */
-			width: 0.4em;
-			height: 0.4em;
+			left: calc(-1 * var(--list-gutter)); /* back to the column's left edge */
+			top: 0.6em;    /* centre the dot on the first line (--list-symbol-size dot) */
+			width: var(--list-symbol-size);
+			height: var(--list-symbol-size);
 			border-radius: 50%;
-			background: #4eab90; /* eucalyptus-400, the theme's teal */
+			background: var(--eucalyptus-400); /* eucalyptus-400, the theme's teal */
+		}
+
+		/* Article ordered-list numbers: mirror the ul dots — same gutter, same
+		   teal. The number must sit in a box WIDE ENOUGH to fit it: text-align
+		   only aligns lines that FIT the box — overflowing lines are laid out
+		   from the start edge (CSS spec) and spill right, which is what made
+		   the period hug the text before. So the box is 2x the gutter wide,
+		   right-aligned, then shifted left so its RIGHT edge lands exactly on
+		   the ul dot's right edge (--list-symbol-size from the column). */
+		.c-rich-text ol {
+			list-style: none;
+			counter-reset: tokiwa-ol;
+			padding-left: var(--list-gutter);
+		}
+		.c-rich-text ol > li {
+			position: relative;
+			counter-increment: tokiwa-ol;
+		}
+		.c-rich-text ol > li::before {
+			content: counter(tokiwa-ol) ".";
+			position: absolute;
+			/* box right edge = (li origin + symbol-size − gutter) → lands at
+			   the dot's right edge; width 2×gutter fits "99." and right-aligns */
+			left: calc(var(--list-symbol-size) - 3 * var(--list-gutter));
+			top: 0;
+			width: calc(2 * var(--list-gutter));
+			text-align: right;
+			color: var(--eucalyptus-400); /* eucalyptus-400, same teal as the dot */
+			font-weight: 600;
 		}
 
 		/* Blockquotes sit flush with the body text — the compiled scss insets
@@ -765,10 +798,10 @@
 			position: relative; /* anchor for the "Copied!" toast */
 		}
 		[data-rss-copy].rss-copied {
-			color: #028760; /* eucalyptus-600 — copied */
+			color: var(--eucalyptus-600); /* eucalyptus-600 — copied */
 		}
 		[data-rss-copy].rss-error {
-			color: #dc2626; /* red-600 — failed */
+			color: var(--red-600); /* red-600 — failed */
 		}
 
 		/* the "Copied!" burst: a label anchored to the icon's top-right that
@@ -784,7 +817,7 @@
 			font-family: serif;
 			font-size: 0.75rem;
 			line-height: 1;
-			color: #028760;
+			color: var(--eucalyptus-600);
 			white-space: nowrap;
 			will-change: transform, opacity;
 		}
@@ -794,7 +827,7 @@
 			height: 4px;
 			margin: -2px 0 0 -2px;
 			border-radius: 50%;
-			background: #028760;
+			background: var(--eucalyptus-600);
 			pointer-events: none;
 			z-index: 60;
 			will-change: transform, opacity;

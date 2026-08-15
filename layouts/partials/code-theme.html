@@ -49,13 +49,15 @@
 	}
 
 	/* Fenced code blocks (emitted by the render-codeblock hook, coloured by the
-	   TextMate engine). Font sizes: 12px in blocks, 14px inline. */
-	.c-rich-text pre.tm-code { font-size: 12px; line-height: 1.6; }
+	   TextMate engine). Font sizes: 12px in blocks, 14px inline. The container
+	   bg/fg come from the design tokens --code-bg/--code-fg, which switch per
+	   body class (see static/css/tokens.css). */
+	.c-rich-text pre.tm-code {
+		font-size: 12px; line-height: 1.6;
+		background-color: var(--code-bg);
+		color: var(--code-fg);
+	}
 	.c-rich-text :not(pre) > code { font-size: 0.875em; }
-
-	/* per-palette code background & base text (from the VS Code theme JSONs) */
-	body.code-quiet-light pre.tm-code { background-color: #F5F5F5; color: #333333; }
-	body.code-night-owl-light pre.tm-code { background-color: #FBFBFB; color: #403f53; }
 </style>
 
 <script>
