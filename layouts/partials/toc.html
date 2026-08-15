@@ -75,11 +75,16 @@
 
     /* The ← Back link: normal line-height + the uniform gap above it (covers
        both the open state below the bottom line and the collapsed state below
-       the row). */
-    [data-article-back] {
+       the row). The bottom-anchored hover underline would float ~0.7px below
+       the 16px serif glyph (24px line box); nudge it up so it hugs the text
+       exactly like every inline link (site-wide underline distance = 0).
+       `a` prefix is required: `a:not(.icon)` (0,1,1) would otherwise override
+       the bare attribute selector (0,1,0). */
+    a[data-article-back] {
         display: inline-block;
         line-height: 1.5;
         margin-top: var(--header-gap);
+        background-position: 0 calc(100% - 0.7px);
     }
 
     /* The TOC body is collapsed until the ☘ is clicked — the header row is

@@ -130,6 +130,15 @@
 			background-position: 0 calc(100% - 6.9px);
 		}
 
+		/* Same underline alignment for the article footer's prev/next links:
+		   they're flex items (block boxes) whose line box (24px, leading-normal)
+		   leaves ~0.7px below the 16px serif glyph, so the bottom-anchored
+		   hover underline floats a hair below — nudge it up to hug the text like
+		   every inline link (the site-wide underline distance is 0). */
+		[data-home-footer] a.flex-grow-0 {
+			background-position: 0 calc(100% - 0.7px);
+		}
+
 		/* optical centering: center the title on its own text only. The hover
 		   underline is a background line at the bottom of the link box and the
 		   descender space sits below the baseline — neither is part of the font,
