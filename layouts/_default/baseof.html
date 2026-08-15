@@ -667,15 +667,21 @@
 		   tokens wrap instead of overflowing, and English words hyphenate to
 		   keep inter-word gaps small (hyphenation needs lang="en" on the
 		   article container — set in single.html — for Chrome to enable it).
+		   overflow-wrap: anywhere lets a URL/word break at ANY character so a
+		   justified line never stretches a single space into a big hole
+		   (Safari in particular treats long URLs as unbreakable, which causes
+		   exactly that gap); word-break: break-word is the legacy alias for
+		   older Safari.
 		   Scoped to <p> only — headings, lists and code blocks keep their own
 		   alignment. */
 		.c-rich-text p {
 			text-align: justify;
 			text-justify: inter-ideograph;
 			text-align-last: left;
-			overflow-wrap: break-word; /* long URLs / code tokens break, no overflow */
-			hyphens: auto;             /* English words hyphenate (reduces gaps) */
-			-webkit-hyphens: auto;     /* older Safari */
+			overflow-wrap: anywhere; /* URLs/links may break at any char — tight justify */
+			word-break: break-word;  /* legacy alias, same effect in old Safari */
+			hyphens: auto;           /* English words hyphenate (reduces gaps) */
+			-webkit-hyphens: auto;   /* older Safari */
 		}
 		/* text-align-last is inherited, so the p's `left` would leak into KaTeX
 		   display math (a single-line block — for it, text-align-last wins over
@@ -771,6 +777,16 @@
 			margin-right: 0;
 			padding-left: 1rem;
 			padding-right: 0;
+		}
+		/* Quote paragraphs justify by word spacing only. The body uses
+		   text-justify: inter-ideograph (legacy name for inter-character), which
+		   spreads the extra space BETWEEN CJK ideographs — in a quote whose line
+		   has just a few CJK chars plus a long URL, that visibly stretches the
+		   原文地址 spacing (Safari honours the legacy value; Chrome ignores it,
+		   which is why it only shows on Safari). inter-word keeps the flush
+		   right edge but never widens CJK character gaps. */
+		.c-rich-text blockquote p {
+			text-justify: inter-word;
 		}
 
 		/* Code blocks read smaller than the 16px body text — 12px, denser and
