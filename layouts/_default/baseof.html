@@ -773,27 +773,37 @@
 		}
 		/* Table Fitting (the narrow/wide two forms) — body tables in normal
 		   mode: a table may never be wider than the pane, never scroll and
-		   never slide. Its natural (wide) form keeps the natural width and
-		   centres like an image; a table whose content would exceed the pane
-		   takes the narrow form, compressed to fit. Auto layout refuses to
-		   shrink below a table's min-content, so the only way to squeeze an
-		   over-wide table (e.g. an 8-column source-code table) is
-		   table-layout:fixed + width:100% — the .tbl-fit class toggled by
-		   site-scripts — which pins its edges flush with main's left/right
-		   lines. Cells wrap (no nowrap) so the fixed columns can't overflow;
-		   headers wrap only as needed. */
+		   never slide. Every table flattens — shows its content on as few
+		   lines as the space allows. A table whose no-wrap width fits the
+		   pane (a narrow table) is sized to that width, every cell on one
+		   line (.tbl-flat) — it is never compressed. A table whose content
+		   wants more room (a wide table) is flattened to the pane's full
+		   width so cells wrap as little as the space allows; if even wrapped
+		   content can't shrink into the pane (min-content > pane), auto
+		   layout is impossible and table-layout:fixed is the only way — the
+		   .tbl-fit class pins its edges flush with main's left/right lines.
+		   Both are centred like an image (margin auto below). */
 		.c-rich-text table {
 			margin-left: auto;
 			margin-right: auto;
 		}
-		/* compact fit: the JS sizes the table to the width that puts the
-		   headers on one line; this keeps them there (applied only when the
-		   chosen width can afford the headers) */
+		/* one-line headers: the JS applies this to a wide table whose chosen
+		   width can afford the headers — they stay on one line, body cells
+		   wrap only where the width forces them to */
 		.c-rich-text table.tbl-oneline th {
 			white-space: nowrap;
 		}
-		/* narrow form: compressed to the pane (fixed layout is the only way
-		   below min-content); columns keep their natural proportions */
+		/* full flatten: the JS applies this to a table whose no-wrap width
+		   fits the pane — the table is sized to that width, so every cell
+		   (th AND td) sits on one line; all content is shown, never
+		   compressed (and never spread in zen) */
+		.c-rich-text table.tbl-flat th,
+		.c-rich-text table.tbl-flat td {
+			white-space: nowrap;
+		}
+		/* over-wide form: only for a table whose wrapped content still can't
+		   fit the pane — fixed layout is the only way below min-content;
+		   columns keep their natural proportions */
 		.c-rich-text table.tbl-fit {
 			table-layout: fixed; /* compressed to the pane */
 			width: 100%;
@@ -811,6 +821,11 @@
 		   the rail's left edge to the pane's right edge, narrower on a
 		   13-inch laptop, wider on 2K). */
 		html.zen .c-rich-text table {
+			/* centring is left:50% + translateX(-50%) alone — the normal-mode
+			   margin auto centring is switched off here, else a narrow table
+			   (already centred by its margins) gets double-shifted off-centre */
+			margin-left: 0;
+			margin-right: 0;
 			position: relative;
 			left: 50%;
 			transform: translateX(-50%);

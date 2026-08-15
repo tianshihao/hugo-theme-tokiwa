@@ -2455,24 +2455,25 @@
 		/* Fit / spread article tables to the pane — the Table Fitting
 		   (narrow/wide forms) + Table Spread (break past main's edges) pair.
 		   measureWidths() gives three honest widths:
-		     natural — every cell wraps to its minimum;
+		     natural — every cell wraps to its minimum (min-content);
 		     hdrReq  — headers stay on one line, body wraps;
 		     maxW    — nothing wraps at all (pure max-content).
-		   Auto layout can set a table to any width ≥ its min-content, with
-		   columns scaling proportionally — and, with `th` kept nowrap, that
-		   is the width at which headers are guaranteed one line. Auto layout
-		   CANNOT go below min-content, so a table that still won't fit the
-		   pane needs table-layout:fixed to be squeezed into it.
-		   normal mode (Table Fitting): needed = max(natural, hdrReq).
-		     needed ≤ pane → auto layout, width = needed, headers nowrap —
-		     compact, headers one line.
-		     needed >  pane → narrow form: .tbl-fit (fixed + width:100%),
-		     columns frozen at their natural proportions.
-		   zen mode (Table Spread): a table whose content wants more room
-		   (maxW > pane) gets auto layout, width = min(maxW, --tbl-spread-max),
-		   headers nowrap — it stretches toward both sides "as needed", never
-		   wider than its content demands and capped by the whitespace cap.
-		   Other tables follow the normal-mode fitting above, centred. */
+		   Every table tries to FLATTEN — show its content on as few lines as
+		   the space allows — never wider than its content demands. Only the
+		   width cap differs between the two forms:
+		     narrow  — a table whose no-wrap width fits the pane
+		       (maxW ≤ pane): sized to maxW, every cell kept on one line
+		       (.tbl-flat). Never compressed; never spread in zen.
+		     wide    — a table whose content wants more room (maxW > pane):
+		       normal → flattened to the pane's full width so cells wrap as
+		       little as the space allows, headers kept one line when they
+		       fit; if even wrapped content can't shrink into the pane
+		       (natural > pane) it takes .tbl-fit (table-layout:fixed, the
+		       only way below min-content), columns frozen at their natural
+		       proportions. zen → Table Spread: auto layout, width =
+		       min(maxW, --tbl-spread-max), stretching toward both sides as
+		       needed and capped by the whitespace cap; fully flattened when
+		       it fits the cap, otherwise headers one line. */
 		function fitTables() {
 			var zen = document.documentElement.classList.contains('zen');
 			var tables = document.querySelectorAll('.c-rich-text table');
@@ -2489,12 +2490,12 @@
 				   zen width transition slides from the pre-toggle width. */
 				var available = container.clientWidth;
 				var m = measureWidths(t);
-				var needed = Math.max(m.natural, m.hdrReq);
 
 				/* reset the previous pass */
 				t.classList.remove('tbl-fit');
 				t.classList.remove('tbl-spread');
 				t.classList.remove('tbl-oneline');
+				t.classList.remove('tbl-flat');
 				clearColWidths(t);
 				t.style.width = '';
 				t.style.maxWidth = '';
@@ -2511,23 +2512,42 @@
 						spread = Math.min(window.innerWidth - 160, 1440);
 					}
 					target = Math.min(m.maxW, spread);
+					t.style.width = target + 'px';
+					t.style.tableLayout = 'auto';
 					t.classList.add('tbl-spread');
-				} else if (needed > available + 1) {
-					/* narrow form: squeeze into the pane (fixed layout is the
-					   only way below min-content) */
-					applyColWidths(t, m.prop);
-					t.classList.add('tbl-fit');
-					continue;
+					if (target >= m.maxW - 1) {
+						/* content wants no more than the cap → fully flat */
+						t.classList.add('tbl-flat');
+					} else if (target >= m.hdrReq - 1) {
+						/* headers fit on one line; body wraps only where forced */
+						t.classList.add('tbl-oneline');
+					}
+				} else if (m.maxW > available + 1) {
+					/* wide form in normal mode: flatten to the pane's width so
+					   cells wrap as little as the space allows */
+					if (m.natural > available + 1) {
+						/* even wrapped content can't fit → fixed layout is the
+						   only way below min-content; columns keep their
+						   natural proportions */
+						applyColWidths(t, m.prop);
+						t.classList.add('tbl-fit');
+						if (m.hdrReq <= available + 1) {
+							t.classList.add('tbl-oneline');
+						}
+					} else {
+						t.style.width = available + 'px';
+						t.style.tableLayout = 'auto';
+						if (m.hdrReq <= available + 1) {
+							t.classList.add('tbl-oneline');
+						}
+					}
 				} else {
-					/* compact fit: as wide as needed for headers one line */
-					target = Math.min(needed, available);
-				}
-
-				/* auto layout at `target`; nowrap headers only when they fit */
-				t.style.width = target + 'px';
-				t.style.tableLayout = 'auto';
-				if (target >= m.hdrReq - 1) {
-					t.classList.add('tbl-oneline');
+					/* narrow form: flatten fully within the pane — sized to the
+					   no-wrap width, every cell on one line (never compressed,
+					   never spread in zen) */
+					t.style.width = m.maxW + 'px';
+					t.style.tableLayout = 'auto';
+					t.classList.add('tbl-flat');
 				}
 			}
 		}

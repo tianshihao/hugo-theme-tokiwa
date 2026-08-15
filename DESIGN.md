@@ -793,33 +793,47 @@ leader, so a third key inside the 1.2 s leader window is a no-op).
   dropped and kill the reverse animation); the transition then slides from
   the pre-toggle width.
 - **Table Fitting (宽窄两态)** — the named feature that gives a body table
-  a width that fits the pane: compact, with the headers on one line when
-  there is room, and never wider than the pane. Implemented in
-  `site-scripts.html` (`fitTables`, exposed as `window.tokiwaFitTables`) +
-  `.tbl-fit` + `.tbl-oneline` in `baseof.html`. *The algorithm* — for each
+  a width that fits the pane, and **flattens** it: every table shows its
+  content on as few lines as the space allows — the only difference between
+  the two forms is the width cap. Implemented in `site-scripts.html`
+  (`fitTables`, exposed as `window.tokiwaFitTables`) + `.tbl-fit` +
+  `.tbl-oneline` + `.tbl-flat` in `baseof.html`. *The algorithm* — for each
   table, measure three widths with the table pinned to `width:1px`
   (a `width:auto` table stretches to fill the pane, so it would report the
   pane instead of its honest sizes):
     `minContent` — every cell wraps to its minimum;
     `hdrReq`     — headers on one line, body wraps;
     `maxContent` — nothing wraps at all.
-  Let `needed = max(minContent, hdrReq)`:
-  - `needed ≤ pane` → auto layout, `width: needed`, add `.tbl-oneline`
-    (`th { white-space:nowrap }`) — compact, headers one line;
-  - `needed >  pane` → narrow form: `.tbl-fit` (`table-layout:fixed;
-    width:100%`), edges flush with the pane, no scroll, no slide, columns
-    frozen at their natural proportions.
+  - narrow (`maxContent ≤ pane`) → the table's no-wrap width fits the pane,
+    so it is sized to `maxContent` with **every cell kept on one line**
+    (`.tbl-flat` — `th, td { white-space:nowrap }`): all content is shown,
+    never compressed. It does **not** spread in zen (nothing to gain; it is
+    already fully readable at `maxContent`, and stays centred).
+  - wide (`maxContent >  pane`) → flattened to the pane's full width so
+    cells wrap as little as the space allows, headers kept one line when
+    they fit (`.tbl-oneline` — `th { white-space:nowrap }`); body cells wrap
+    only where the width forces them. If even *wrapped* content can't shrink
+    into the pane (`minContent > pane`) it takes `.tbl-fit`
+    (`table-layout:fixed; width:100%`), edges flush with the pane, no
+    scroll, no slide, columns frozen at their natural proportions.
   - **why fixed layout** — auto layout cannot size a table below its
     min-content, so squeezing an over-wide table (e.g. an 8-column
     source-code table) into the pane needs `table-layout:fixed`.
-- **Table Spread (突破边界)** — the named feature that lets a table break
-  past its container's left/right edges and stretch toward both sides — but
-  only **as needed**: never wider than its content demands, and capped by
-  `--tbl-spread-max`. In this theme it activates in **zen mode**: a table
+  - **zen centring** — `html.zen .c-rich-text table` centres with
+    `left:50% + translateX(-50%)` alone; the normal-mode `margin:auto`
+    centring is switched off (`margin-left/right:0`) so a narrow table
+    (already centred by its margins) is not double-shifted off-centre. Every
+    width, narrow or spread, lands centred on the viewport.
+- **Table Spread (突破边界)** — the named feature that lets a wide table
+  break past its container's left/right edges and stretch toward both sides
+  — but only **as needed**: never wider than its content demands, and capped
+  by `--tbl-spread-max`. In this theme it activates in **zen mode**: a table
   whose max-content exceeds the pane gets auto layout,
-  `width: min(maxContent, --tbl-spread-max)`, plus `.tbl-oneline` when that
-  width can afford the headers. A table with little content stays compact
-  (its own maxContent); only a content-heavy table reaches the cap.
+  `width: min(maxContent, --tbl-spread-max)`; it is fully flattened
+  (`.tbl-flat`) when it fits the cap, otherwise headers one line
+  (`.tbl-oneline`) when the width can afford them. A table with little
+  content stays at its own maxContent; only a content-heavy table reaches
+  the cap.
   *Portable contract:* a host provides `--tbl-spread-max` (this theme
   measures it as the normal-mode span from the rail's left edge to the
   pane's right edge — narrower on a 13-inch laptop, wider on 2K); the JS
