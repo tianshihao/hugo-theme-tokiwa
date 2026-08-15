@@ -1,0 +1,5 @@
+{{- /* Fenced code blocks are emitted raw; the front-end TextMate engine
+        (js/tm-highlight.min.js, see layouts/partials/code-theme.html) tokenizes
+        and colours them with VS Code's grammar + the active color theme.
+        .Type = fenced language (e.g. "cpp"); .Inner = the code text. */ -}}
+<pre class="tm-code" data-lang="{{ .Type }}"><code>{{ .Inner }}</code></pre>

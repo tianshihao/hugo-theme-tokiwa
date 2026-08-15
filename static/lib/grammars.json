@@ -1,0 +1,28 @@
+{
+  // Language manifest for the TextMate highlighter (js/tm-highlight.min.js).
+  // Adding a language = put its .tmLanguage(.json) file in this dir + add one
+  // line to `languages` (fence name -> scope) and one to `grammars`
+  // (scope -> file). No rebuild needed — this JSON is fetched at runtime.
+  // Grammars may be JSON or plist; the engine parses both.
+  "languages": {
+    "cpp": "source.cpp", "c++": "source.cpp", "cc": "source.cpp",
+    "cxx": "source.cpp", "c": "source.cpp",
+    "bash": "source.shell", "sh": "source.shell", "shell": "source.shell",
+    "zsh": "source.shell", "console": "source.shell",
+    "python": "source.python", "py": "source.python",
+    "cmake": "source.cmake",
+    "assembly": "source.asm.x86_64", "asm": "source.asm.x86_64",
+    "nasm": "source.asm.x86_64", "x86_64": "source.asm.x86_64"
+  },
+  "grammars": {
+    "source.cpp": "cpp.tmLanguage.json",
+    "source.shell": "shell.tmLanguage.json",
+    "source.python": "MagicPython.tmLanguage",
+    "source.regexp.python": "MagicRegExp.tmLanguage",
+    "source.cmake": "CMake.tmLanguage",
+    "source.asm.x86_64": "x86_64.tmLanguage.json",
+    "source.asm": "x86_64.tmLanguage.json",
+    "source.x86": "x86_64.tmLanguage.json",
+    "source.x86_64": "x86_64.tmLanguage.json"
+  }
+}

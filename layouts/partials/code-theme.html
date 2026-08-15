@@ -1,0 +1,64 @@
+{{/* Code font + syntax theme.
+   Code blocks are tokenized IN THE BROWSER by VS Code's own TextMate engine
+   (js/tm-highlight.min.js + lib/cpp.tmLanguage.json + lib/onig.wasm), then
+   coloured by resolving each token's TextMate scopes against the active VS Code
+   color theme (lib/quiet-light.json / lib/night-owl-light.json), selected by
+   the body class code-quiet-light / code-night-owl-light (params.codeScheme).
+   Fenced code is emitted raw by layouts/_default/_markup/render-codeblock.html.
+   The code font comes from params.codeFont (default "Fira Code"). */}}
+{{ $codeFont := .Site.Params.codeFont | default "Fira Code" }}
+
+{{ if strings.Contains $codeFont "Fira" }}
+<style type="text/css" media="screen">
+	@font-face {
+		font-family: "Fira Code";
+		font-style: normal;
+		font-weight: 400;
+		font-display: swap;
+		src: url('{{ "fonts/FiraCode-Regular.woff2" | relURL }}') format('woff2');
+	}
+	@font-face {
+		font-family: "Fira Code";
+		font-style: normal;
+		font-weight: 500;
+		font-display: swap;
+		src: url('{{ "fonts/FiraCode-Medium.woff2" | relURL }}') format('woff2');
+	}
+	@font-face {
+		font-family: "Fira Code";
+		font-style: normal;
+		font-weight: 600;
+		font-display: swap;
+		src: url('{{ "fonts/FiraCode-SemiBold.woff2" | relURL }}') format('woff2');
+	}
+	@font-face {
+		font-family: "Fira Code";
+		font-style: normal;
+		font-weight: 700;
+		font-display: swap;
+		src: url('{{ "fonts/FiraCode-Bold.woff2" | relURL }}') format('woff2');
+	}
+</style>
+{{ end }}
+
+<style type="text/css" media="screen">
+	/* code font: params.codeFont (default Fira Code), then sensible fallbacks */
+	.c-rich-text pre,
+	.c-rich-text code {
+		font-family: {{ $codeFont | safeCSS }}, "Cascadia Code", Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+	}
+
+	/* Fenced code blocks (emitted by the render-codeblock hook, coloured by the
+	   TextMate engine). Font sizes: 12px in blocks, 14px inline. */
+	.c-rich-text pre.tm-code { font-size: 12px; line-height: 1.6; }
+	.c-rich-text :not(pre) > code { font-size: 0.875em; }
+
+	/* per-palette code background & base text (from the VS Code theme JSONs) */
+	body.code-quiet-light pre.tm-code { background-color: #F5F5F5; color: #333333; }
+	body.code-night-owl-light pre.tm-code { background-color: #FBFBFB; color: #403f53; }
+</style>
+
+<script>
+	window.TM_LIB = '{{ "lib" | relURL }}';
+</script>
+<script src='{{ "js/tm-highlight.min.js" | relURL }}' defer></script>

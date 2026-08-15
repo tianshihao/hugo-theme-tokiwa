@@ -387,8 +387,7 @@
 			/* Chrome 6+, Firefox 3.6+, IE 9+, Safari 5.1+ */
 		}
 	</style>
-	{{ end }}
-	{{ if $oneScreen }}
+	{{ end }}	{{ partial "code-theme.html" . }}	{{ if $oneScreen }}
 	<style type="text/css">
 		@media (min-width: 768px) {
 			body.home-one-screen {
@@ -741,6 +740,19 @@
 			padding-right: 0;
 		}
 
+		/* Code blocks read smaller than the 16px body text — 12px, denser and
+		   secondary. The code block's line-height is tightened to match, so the
+		   small glyphs don't float in oversized line boxes. The pre sets its own
+		   size and the inner <code> inherits it (a bare em on both would shrink
+		   twice); inline code outside <pre> stays a touch larger at 14px. */
+		.c-rich-text pre {
+			font-size: 12px;
+			line-height: 1.6; /* 19.2px line boxes */
+		}
+		.c-rich-text :not(pre) > code {
+			font-size: 0.875em; /* inline code in paragraphs/lists: 14px */
+		}
+
 		/* The aside's RSS icon copies the feed to the clipboard on click (it is
 		   not a link, so it needs a button affordance + resets). A brief colour
 		   flash shows success (teal) / failure (red) — same family as the
@@ -790,7 +802,7 @@
 	</style>
 </head>
 
-	<body class="bg-gray-100 text-gray-700 font-sans{{ if $oneScreen }} home-one-screen{{ end }}{{ if .IsPage }} is-article{{ end }}">
+	<body class="bg-gray-100 text-gray-700 font-sans{{ if $oneScreen }} home-one-screen{{ end }}{{ if .IsPage }} is-article{{ end }} code-{{ default "quiet-light" .Site.Params.codeScheme }}">
 	<div data-home-shell class="p-6 sm:p-10 md:p-16 flex flex-wrap{{ if $oneScreen }} home-one-screen-shell{{ end }}">
 		<header class="w-full md:w-2/5 xl:w-1/2 md:pr-12 lg:pr-20 xl:pr-24 order-1 md:order-1 max-w-2xl">
 			<div
