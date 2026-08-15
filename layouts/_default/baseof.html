@@ -710,53 +710,53 @@
 
 		/* Article list bullets + numbers: replace the compiled scss's default
 		   black markers (list-style-position: inside — ugly, drifts off the
-		   text) with the theme's soft teal dot (ul) / teal counter (ol). Both
-		   symbols sit in the same --list-gutter at the column's left edge, and
-		   the ol number's right edge aligns to the ul dot's right edge
-		   (--list-symbol-size), so number↔text gap == dot↔text gap. */
-		.c-rich-text ul {
+		   text) with the theme's soft teal dot (ul) / teal counter (ol).
+		   Design rule — top-level lists are NOT indented: the markers' LEFT
+		   edges sit ON the body's left line (box padding 0, marker left: 0),
+		   hugging the same line as every paragraph; the text hangs right of
+		   the marker in the shared --list-gutter, and every line is justified
+		   (both sides aligned). The gutter is the smallest indent that clears
+		   the widest marker ("10." ≈ 22px) so nothing overlaps or protrudes. */
+		.c-rich-text ul,
+		.c-rich-text ol {
 			list-style: none;
-			padding-left: var(--list-gutter); /* room for the dot inside the body column */
+			padding-left: 0; /* top-level box boundary = the body's left line */
 		}
 		.c-rich-text ul > li {
 			position: relative;
+			/* text hangs at dot + the same gap the ol numbers get, so the ul
+			   dot↔text gap EQUALS the ol number↔text gap */
+			padding-left: calc(var(--list-symbol-size) + var(--list-gap));
+			text-align: justify; /* knife-cut right edge, like paragraphs */
 		}
 		.c-rich-text ul > li::before {
 			content: "";
 			position: absolute;
-			left: calc(-1 * var(--list-gutter)); /* back to the column's left edge */
-			top: 0.6em;    /* centre the dot on the first line (--list-symbol-size dot) */
+			left: 0;        /* dot's left edge on the column line */
+			top: 0.65em;   /* sit the dot on the text's optical centre: 0.6em reads a
+			                 touch high, 0.7em reads low; 0.65em splits the two */
 			width: var(--list-symbol-size);
 			height: var(--list-symbol-size);
 			border-radius: 50%;
 			background: var(--eucalyptus-400); /* eucalyptus-400, the theme's teal */
 		}
-
-		/* Article ordered-list numbers: mirror the ul dots — same gutter, same
-		   teal. The number must sit in a box WIDE ENOUGH to fit it: text-align
-		   only aligns lines that FIT the box — overflowing lines are laid out
-		   from the start edge (CSS spec) and spill right, which is what made
-		   the period hug the text before. So the box is 2x the gutter wide,
-		   right-aligned, then shifted left so its RIGHT edge lands exactly on
-		   the ul dot's right edge (--list-symbol-size from the column). */
 		.c-rich-text ol {
-			list-style: none;
 			counter-reset: tokiwa-ol;
-			padding-left: var(--list-gutter);
 		}
 		.c-rich-text ol > li {
 			position: relative;
+			/* base indent = --list-gutter (1-digit); a ≥10-item list gets a wider
+			   --ol-indent from site-scripts so the gap stays constant */
+			padding-left: var(--ol-indent, var(--list-gutter));
+			text-align: justify; /* knife-cut right edge, like paragraphs */
 			counter-increment: tokiwa-ol;
 		}
 		.c-rich-text ol > li::before {
 			content: counter(tokiwa-ol) ".";
 			position: absolute;
-			/* box right edge = (li origin + symbol-size − gutter) → lands at
-			   the dot's right edge; width 2×gutter fits "99." and right-aligns */
-			left: calc(var(--list-symbol-size) - 3 * var(--list-gutter));
+			left: 0;        /* number's left edge on the column line */
 			top: 0;
-			width: calc(2 * var(--list-gutter));
-			text-align: right;
+			white-space: nowrap; /* keep "99." on one line */
 			color: var(--eucalyptus-400); /* eucalyptus-400, same teal as the dot */
 			font-weight: 600;
 		}

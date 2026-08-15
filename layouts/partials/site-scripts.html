@@ -2589,6 +2589,86 @@
 		updateNavCurrent();
 	})();
 
+	/* Article ordered lists: hang the text so the marker↔text gap stays
+	   constant whatever the digit count. The number sits at the column line
+	   (left: 0); the text indent = the widest number's width + --list-gap.
+	   A 1-digit list uses the base --list-gutter; a list with ≥10 items needs
+	   one more value, measured from its widest "N." label and set per-list on
+	   --ol-indent (real lists never reach 3 digits). Runs at load, after fonts
+	   load, and on resize. */
+	var articleLists = (function () {
+		/* measure an li's marker↔text gap: the first line's text left minus the
+		   marker's right edge (the marker is an absolute ::before at left: 0) */
+		function measureGap(li) {
+			var cs = getComputedStyle(li, '::before');
+			var markerRight = li.getBoundingClientRect().left + parseFloat(cs.left) + parseFloat(cs.width);
+			var child = li.firstChild;
+			while (child) {
+				if (child.nodeType === 3 && child.textContent.trim()) {
+					var rr = document.createRange();
+					rr.selectNodeContents(child);
+					var rc = rr.getClientRects();
+					if (rc.length) {
+						return rc[0].left - markerRight;
+					}
+				}
+				child = child.nextSibling;
+			}
+			return null;
+		}
+		function sizeOls() {
+			document.querySelectorAll('.c-rich-text ol').forEach(function (ol) {
+				/* a list split by a paragraph becomes several <ol>s; Hugo marks
+				   the continuations with start="N". The base CSS resets the
+				   counter to 0 on every ol, which would restart a continuation
+				   at 1 — so pin the counter to start − 1 (the first li's
+				   counter-increment then shows start). Idempotent: re-reads the
+				   attribute every run. */
+				var start = parseInt(ol.getAttribute('start'), 10);
+				if (!isNaN(start) && start > 1) {
+					ol.style.setProperty('counter-reset', 'tokiwa-ol ' + (start - 1));
+				} else {
+					ol.style.removeProperty('counter-reset');
+				}
+				var items = ol.children;
+				var n = items.length; /* the largest counter value */
+				var first = items[0];
+				if (!first) {
+					return;
+				}
+				/* reset to the base indent first, so we always measure the
+				   natural "1." gap — sizeOls runs more than once (load +
+				   fonts.ready + resize), and a stale --ol-indent would compound */
+				ol.style.removeProperty('--ol-indent');
+				if (n < 10) {
+					/* 1-digit: the CSS base indent already gives the right gap */
+					return;
+				}
+				/* the gap the list's "1." currently gets (base indent) */
+				var gap = measureGap(first);
+				/* measure the widest label "N." at the counter's font */
+				var cs = getComputedStyle(first);
+				var probe = document.createElement('span');
+				probe.style.cssText = 'position:absolute;visibility:hidden;pointer-events:none;' +
+					'white-space:nowrap;font-weight:600;font-family:' + cs.fontFamily + ';' +
+					'font-size:' + cs.fontSize + ';';
+				document.body.appendChild(probe);
+				probe.textContent = String(n) + '.';
+				var w = probe.getBoundingClientRect().width;
+				document.body.removeChild(probe);
+				ol.style.setProperty('--ol-indent', (w + (gap !== null ? gap : 10.6)) + 'px');
+			});
+		}
+		function boot() {
+			sizeOls();
+			if (document.fonts && document.fonts.ready) {
+				document.fonts.ready.then(sizeOls);
+			}
+			window.addEventListener('resize', sizeOls);
+		}
+		return { boot: boot };
+	})();
+
 	/* Bring keyboard focus into the page so the vim keys work immediately. The
 	   embedded browser (VS Code webview) keeps focus on the editor until the
 	   user clicks inside; focusing the body claims the keyboard without
@@ -2617,6 +2697,7 @@
 		} else if (document.querySelector('[data-taxonomy-cards] > section')) {
 			taxonomyCards.boot();
 		}
+		articleLists.boot(); /* size ol indents by digit width (articles) */
 		/* h on a leaf restores the page it came from: if we just returned to a
 		   list / card page, put the cursor back where it was */
 		if (window.tokiwaApplyReturnRestore) {

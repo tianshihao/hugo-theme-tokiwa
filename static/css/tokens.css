@@ -45,9 +45,12 @@
   --highlight:          rgba(2, 135, 96, 0.14); /* tag / preview / nav / TOC pill */
 
   /* ---- layout tokens: article list rhythm (ul dots & ol numbers) ---- */
-  --list-gutter:        0.9rem; /* ul/ol text indent; the symbols live in this gutter */
-  --list-symbol-size:   0.4em;  /* ul dot diameter; the ol number's right edge aligns
-                                   to the dot's right edge, so number↔text gap == dot↔text gap */
+  --list-gutter:        1.5rem;  /* BASE ol text indent: clears "1." (≈ 13.4px) +
+                                    the gap. A ≥10-item list gets a wider
+                                    --ol-indent from JS so the gap stays constant */
+  --list-gap:           0.665rem; /* the ONE marker↔text gap (≈ 10.6px): ul dot,
+                                    ol "1." and ol "10." all get the same */
+  --list-symbol-size:   0.4em;   /* ul dot diameter (left edge on the column line) */
 }
 
 /* ---- code containers (per params.codeScheme) ---- */

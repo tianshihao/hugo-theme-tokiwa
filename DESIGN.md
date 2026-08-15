@@ -13,17 +13,22 @@ such a change, stop and reconsider.
   sets `font-size = (2 × --list-line-height) / ratio`, so the label glyph is
   **exactly two list lines tall**. Shared by the posts year label and the tags
   drop-cap label.
-- `--list-gutter: 0.9rem` — article `ul`/`ol` text indent; the list symbols
-  (the teal dot for `ul`, the teal counter for `ol`) live in this gutter.
-- `--list-symbol-size: 0.4em` — the `ul` dot's diameter; the `ol` counter is
-  right-aligned in a box that is **2× the gutter wide** so its right edge lands
-  exactly where the dot's right edge does. (Why wide? `text-align` only aligns
-  lines that FIT the box — overflowing lines spill from the start edge (CSS
-  spec), which is what made the period hug the text before. See `baseof.html`.)
-- **INVARIANT — list symbol↔text gap is unified.** The `ol` number↔text gap
-  equals the `ul` dot↔text gap, both `--list-gutter − --list-symbol-size`
-  (≈ 8px). Both lists are defined in `baseof.html` from the same two tokens;
-  never give one list a different gutter or symbol size.
+- `--list-gutter: 1.5rem` — the **base** `ol` text indent (clears `"1."` ≈ 13.4px
+  + the gap). The numbers' **left edges sit ON the body's left line** (box
+  padding 0, marker `left: 0`), so top-level lists are not indented.
+- `--list-gap: 0.665rem` — the ONE marker↔text gap (≈ 10.6px). The `ul` text
+  hangs at `dot + gap`; the `ol` gap is kept constant by sizing the indent to
+  the widest number.
+- `--list-symbol-size: 0.4em` — the `ul` dot's diameter (left edge on the line).
+- **Digit-aware `ol` indent (JS, `articleLists` in `site-scripts.html`):** a
+  ≥10-item `ol` gets `--ol-indent` = its widest `"N."` width + `--list-gap`
+  (set per-list, measured at the counter font), so the gap stays constant for
+  the widest number — `"10."` gets the same gap as `"1."`. 1-digit lists use
+  the base `--list-gutter`. (Real lists never reach 3 digits.)
+- **INVARIANT — `ol` numbers are LEFT-aligned at the body's line, never
+  right-aligned.** Right-aligning them to a fixed period column is what makes
+  the list look "aligned inside" (user rejects it). The gap is instead kept
+  constant by the digit-aware text indent.
 
 ## 2. The drop-cap tag (taxonomy cards)
 
