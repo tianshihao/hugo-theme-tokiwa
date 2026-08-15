@@ -1587,6 +1587,8 @@
 			} else if (document.querySelector('[data-taxonomy-cards] > section')) {
 				taxonomyCards.boot();
 			}
+			/* compress / stretch the new page's tables to the current pane */
+			window.tokiwaFitTables();
 			window.scrollTo(0, 0);
 		}
 
@@ -1638,8 +1640,8 @@
 			/* the home title is the site root: clicking it (or gh) must actually
 			   GO to / — a real navigation, so the URL becomes the home page,
 			   exactly like a normal logo→homepage click. The other first-level
-			   items (posts / tags / categories / series / about) still commit
-			   in place via the SPA preview; only home is a real link. */
+			   items (posts / tags / categories / series / about) commit in place
+			   via the SPA preview (the g-leader routes them through home first). */
 			if (normalizePath(href) === '/') {
 				clearReturnContext();
 				window.location.href = '/';
@@ -1698,7 +1700,14 @@
 					}
 				}
 			}
-			return null;
+			/* On article (and other deep) pages the site nav isn't rendered in
+			   the DOM — single.html swaps the nav header for a back link — but
+			   the g-leader means the same thing there too: openNavItem falls
+			   back to a real navigation on deep pages, so synthesise the anchor
+			   to keep gh/gp/gt/gc/gs/ga working everywhere (DESIGN §4). */
+			var a = document.createElement('a');
+			a.href = target;
+			return a;
 		}
 
 		function wireNavClicks() {
@@ -2355,17 +2364,198 @@
 			} catch (err) {}
 		}
 		/* --zen-shift lives on <html> (NOT the shell): it survives both full page
-		   loads and SPA content swaps. It only depends on the rail's width —
-		   viewport-driven (md:w-2/5 / xl:w-1/2, capped at max-w-2xl) — so one
-		   measurement applies on every page. Symmetric shell padding ⇒ shifting
-		   the pane by L/2 puts its centre on the viewport centre. */
+		   loads and SPA content swaps. It is the exact shift that puts the pane's
+		   centre on the viewport centre. */
 		function measureZenShift() {
-			var rail = document.querySelector('[data-home-shell] > [data-home-rail]');
-			if (!rail) {
+			var html = document.documentElement;
+			var pane = document.querySelector('[data-home-shell] > [data-home-pane]');
+			if (!pane) {
 				return;
 			}
-			document.documentElement.style.setProperty('--zen-shift', (rail.offsetWidth / 2) + 'px');
+			/* Centre the pane at ANY width. On ordinary screens the pane's
+			   centre sits railWidth/2 past the viewport centre, but on wide
+			   screens the max-w caps leave the two columns short of the
+			   viewport edge, so the correct shift is the pane's untransformed
+			   centre minus the viewport centre (negative = move right).
+			   Measure it with zen temporarily dropped. */
+			var rail = document.querySelector('[data-home-shell] > [data-home-rail]');
+			var zenOn = html.classList.contains('zen');
+			if (zenOn) { html.classList.remove('zen'); }
+			var rect = pane.getBoundingClientRect();
+			var railLeft = rail ? rail.getBoundingClientRect().left : 0;
+			if (zenOn) { html.classList.add('zen'); }
+			var shift = (rect.left + rect.width / 2) - (window.innerWidth / 2);
+			html.style.setProperty('--zen-shift', shift + 'px');
+			/* Table Spread cap: a wide table may stretch toward BOTH sides, but
+			   never past the span the content already occupies in normal mode —
+			   from the rail's left edge to the pane's right edge. That keeps
+			   the normal side whitespace at every screen width (narrow on a
+			   13-inch laptop, wide on 2K). */
+			html.style.setProperty('--tbl-spread-max', (rect.right - railLeft) + 'px');
 		}
+		/* Measure a table's three widths on a detached CLONE so the live
+		   table's layout is never disturbed. That matters for the zen width
+		   animation: a width:auto table stretches to fill the pane, so to
+		   read its honest sizes it must be pinned to width:1px — but pinning
+		   the LIVE table would re-layout it and corrupt the start value of
+		   the width transition. The clone is pinned instead; the live table
+		   keeps its old width until fitTables applies the new one, so the
+		   transition slides cleanly from the true before-value. */
+		function measureWidths(t) {
+			var clone = t.cloneNode(true);
+			clone.className = ''; /* drop tbl-fit / tbl-spread / tbl-oneline */
+			[...clone.querySelectorAll('[id]')].forEach(function (el) {
+				el.removeAttribute('id');
+			});
+			var cells = clone.querySelectorAll('th, td');
+			for (var i = 0; i < cells.length; i++) {
+				cells[i].style.cssText = ''; /* drop cell widths / nowrap */
+			}
+			clone.style.cssText = 'table-layout:auto; width:1px; max-width:none;';
+			/* a plain host would lose the .c-rich-text cell padding, so the
+			   widths would not match the live table — measure inside a hidden
+			   .c-rich-text */
+			var host = document.createElement('div');
+			host.className = 'c-rich-text';
+			host.style.cssText = 'position:absolute; left:-9999px; top:0; visibility:hidden; pointer-events:none;';
+			host.appendChild(clone);
+			document.body.appendChild(host);
+			var natural = clone.getBoundingClientRect().width;
+			/* the first row's natural proportions, for the fixed narrow form
+			   (freezing these keeps the content ratios instead of equal
+			   columns); measured on the clone so the live table stays
+			   untouched */
+			var firstRow = clone.querySelector('tr');
+			var prop = null;
+			if (firstRow) {
+				var fc = firstRow.querySelectorAll('th, td');
+				var widths = [];
+				var total = 0;
+				for (var i = 0; i < fc.length; i++) {
+					var w = fc[i].getBoundingClientRect().width;
+					widths.push(w);
+					total += w;
+				}
+				if (total > 0) {
+					prop = { widths: widths, total: total };
+				}
+			}
+			var ths = clone.querySelectorAll('th');
+			for (var i = 0; i < ths.length; i++) {
+				ths[i].style.whiteSpace = 'nowrap';
+			}
+			var hdrReq = clone.getBoundingClientRect().width;
+			for (var i = 0; i < cells.length; i++) {
+				cells[i].style.whiteSpace = 'nowrap';
+			}
+			var maxW = clone.getBoundingClientRect().width;
+			document.body.removeChild(host);
+			return { natural: natural, hdrReq: hdrReq, maxW: maxW, prop: prop };
+		}
+		/* Fit / spread article tables to the pane — the Table Fitting
+		   (narrow/wide forms) + Table Spread (break past main's edges) pair.
+		   measureWidths() gives three honest widths:
+		     natural — every cell wraps to its minimum;
+		     hdrReq  — headers stay on one line, body wraps;
+		     maxW    — nothing wraps at all (pure max-content).
+		   Auto layout can set a table to any width ≥ its min-content, with
+		   columns scaling proportionally — and, with `th` kept nowrap, that
+		   is the width at which headers are guaranteed one line. Auto layout
+		   CANNOT go below min-content, so a table that still won't fit the
+		   pane needs table-layout:fixed to be squeezed into it.
+		   normal mode (Table Fitting): needed = max(natural, hdrReq).
+		     needed ≤ pane → auto layout, width = needed, headers nowrap —
+		     compact, headers one line.
+		     needed >  pane → narrow form: .tbl-fit (fixed + width:100%),
+		     columns frozen at their natural proportions.
+		   zen mode (Table Spread): a table whose content wants more room
+		   (maxW > pane) gets auto layout, width = min(maxW, --tbl-spread-max),
+		   headers nowrap — it stretches toward both sides "as needed", never
+		   wider than its content demands and capped by the whitespace cap.
+		   Other tables follow the normal-mode fitting above, centred. */
+		function fitTables() {
+			var zen = document.documentElement.classList.contains('zen');
+			var tables = document.querySelectorAll('.c-rich-text table');
+			for (var i = 0; i < tables.length; i++) {
+				var t = tables[i];
+				var container = t.closest('.c-rich-text');
+				if (!container) {
+					continue;
+				}
+				/* READ FIRST: the container width and the clone measurement both
+				   force a layout pass, which commits the table's CURRENT width.
+				   Only after that is the live table reset + re-sized, with no
+				   reads in between — so the browser batches the change and the
+				   zen width transition slides from the pre-toggle width. */
+				var available = container.clientWidth;
+				var m = measureWidths(t);
+				var needed = Math.max(m.natural, m.hdrReq);
+
+				/* reset the previous pass */
+				t.classList.remove('tbl-fit');
+				t.classList.remove('tbl-spread');
+				t.classList.remove('tbl-oneline');
+				clearColWidths(t);
+				t.style.width = '';
+				t.style.maxWidth = '';
+				t.style.tableLayout = '';
+
+				/* ---- decide the form (no layout reads from here on) ---- */
+				var target = null;
+				if (zen && m.maxW > available + 1) {
+					/* Table Spread: as wide as the content wants, capped by the
+					   whitespace cap (never the whole screen) */
+					var html = document.documentElement;
+					var spread = parseFloat(html.style.getPropertyValue('--tbl-spread-max'));
+					if (isNaN(spread) || spread <= 0) {
+						spread = Math.min(window.innerWidth - 160, 1440);
+					}
+					target = Math.min(m.maxW, spread);
+					t.classList.add('tbl-spread');
+				} else if (needed > available + 1) {
+					/* narrow form: squeeze into the pane (fixed layout is the
+					   only way below min-content) */
+					applyColWidths(t, m.prop);
+					t.classList.add('tbl-fit');
+					continue;
+				} else {
+					/* compact fit: as wide as needed for headers one line */
+					target = Math.min(needed, available);
+				}
+
+				/* auto layout at `target`; nowrap headers only when they fit */
+				t.style.width = target + 'px';
+				t.style.tableLayout = 'auto';
+				if (target >= m.hdrReq - 1) {
+					t.classList.add('tbl-oneline');
+				}
+			}
+		}
+		function applyColWidths(t, prop) {
+			if (!prop) {
+				return;
+			}
+			var firstRow = t.querySelector('tr');
+			if (!firstRow) {
+				return;
+			}
+			var cells = firstRow.querySelectorAll('th, td');
+			for (var i = 0; i < cells.length && i < prop.widths.length; i++) {
+				cells[i].style.width = ((prop.widths[i] / prop.total) * 100) + '%';
+			}
+		}
+		function clearColWidths(t) {
+			var firstRow = t.querySelector('tr');
+			if (!firstRow) {
+				return;
+			}
+			var cells = firstRow.querySelectorAll('th, td');
+			for (var i = 0; i < cells.length; i++) {
+				cells[i].style.width = '';
+			}
+		}
+		/* exposed for the boot / SPA-swap call sites (separate IIFEs) */
+		window.tokiwaFitTables = fitTables;
 		var zenAnimTimer = null;
 		window.tokiwaToggleZen = function () {
 			var rail = document.querySelector('[data-home-shell] > [data-home-rail]');
@@ -2382,6 +2572,17 @@
 			if (zenActive) {
 				measureZenShift();
 			}
+			/* switch wide tables between their normal compressed and zen
+			   stretched forms. measureWidths() uses a clone, so the live
+			   table's width changes exactly once here — the browser sees a
+			   clean old→new change and the zen width transition (gated by
+			   html.zen-anim) slides simultaneously with the pane, and in
+			   reverse on exit. Guarded: a table that resists measurement must
+			   never leave the animation state machine wedged (zen-anim
+			   removed below regardless). */
+			try {
+				fitTables();
+			} catch (err) {}
 			clearTimeout(zenAnimTimer);
 			zenAnimTimer = setTimeout(function () {
 				html.classList.remove('zen-anim');
@@ -2398,10 +2599,12 @@
 		}
 		window.addEventListener('resize', function () {
 			if (!zenActive) {
+				fitTables(); /* pane width changed in normal mode */
 				return;
 			}
 			if (!zenMedia.matches) {
 				setZen(false); /* left desktop → exit zen */
+				fitTables(); /* wide tables must compress again */
 				return;
 			}
 			measureZenShift();
@@ -2463,11 +2666,28 @@
 					return;
 				}
 				e.preventDefault();
-				/* gh/gp/gt/gc/gs/ga = click that nav element: dynamic-load its
-				   content into the right pane, never navigate */
-				var a = navItemForHref(target);
-				if (a) {
-					openNavItem(a);
+				/* gh: home is a real destination (the logo → homepage click) */
+				if (normalizePath(target) === '/') {
+					clearReturnContext();
+					window.location.href = '/';
+					return;
+				}
+				/* gp/gt/gc/gs/ga: home is the SPA shell — a first-level page is
+				   only ever shown inside home's pane. Already on home → preview
+				   the target in place. From a deeper page (article / term) go
+				   home FIRST via the same ?to= path a direct /tags/ visit uses:
+				   a real navigation, so home's clean chrome loads, and home's
+				   boot (tokiwaLoadToPage) previews the target into the pane,
+				   commits it and replaces the URL with plain home. Only the
+				   pane ever shows the SPA; everything else stays home's. */
+				if (window.location.pathname.replace(/\/+$/, '') === '') {
+					var a = navItemForHref(target);
+					if (a) {
+						openNavItem(a);
+					}
+				} else {
+					clearReturnContext();
+					window.location.href = '/?to=' + encodeURIComponent(target);
 				}
 				return;
 			}
@@ -2793,6 +3013,7 @@
 			taxonomyCards.boot();
 		}
 		articleLists.boot(); /* size ol indents by digit width (articles) */
+		window.tokiwaFitTables(); /* compress any table wider than the pane (pre-paint) */
 		/* h on a leaf restores the page it came from: if we just returned to a
 		   list / card page, put the cursor back where it was */
 		if (window.tokiwaApplyReturnRestore) {

@@ -244,14 +244,20 @@ outside vim mode just shows the content without activating a cursor).
 External links and non-previewable targets (articles / 404) fall back to a
 real navigation; clicks from deeper pages navigate normally.
 
-The **g-leader is exactly a mouse click**: `gh`/`gp`/`gt`/`gc`/`gs`/`ga` resolve
-their route to the matching nav element via `navItemForHref()` (the home title
-is its own first-class item) and call the same shared `openNavItem()` as a
-click — dynamic-load into the right pane on a first-level page (URL never
-moves, purple commits on the target, and a cursor in the nav moves into the
-content), real navigation otherwise. So every way of "selecting" a first-level
-page — j/k/gg/G preview, `l`/Enter commit, mouse click, and the g-leader — is
-one engine.
+The **g-leader routes through home** — home is the SPA shell, and a
+first-level page is only ever shown inside home's pane, so
+`gh`/`gp`/`gt`/`gc`/`gs`/`ga` behave identically from any page:
+- `gh` — a real navigation to `/` (the logo → homepage click);
+- `gp`/`gt`/`gc`/`gs`/`ga` — already on home → the target is previewed into
+  the pane in place (the shared `openNavItem()` / `previewNavTo()` engine);
+  from a deeper page (article / term) → a **real navigation to `/?to=<path>`**,
+  reusing the same redirect `tokiwaLoadToPage()` handles for direct
+  first-level visits: home's clean chrome loads (the site nav, header, rail,
+  aside — all home's) and the target is SPA-previewed into the pane, committed
+  (purple) and the `?to=` consumed via `replaceState` so the URL becomes plain
+  home. Only the pane ever shows the SPA; nothing of the originating article
+  lingers. So every way of "selecting" a first-level page — j/k/gg/G preview,
+  `l`/Enter commit, mouse click, and the g-leader — lands in the same pane.
 
 The nav also takes priority over the reading view: once `h` has entered the
 nav, `j`/`k`/`gg`/`G` operate on the nav cursor even on a reading page (e.g.
@@ -754,6 +760,13 @@ leader, so a third key inside the 1.2 s leader window is a no-op).
   (header + aside) is **the rail** `data-home-rail`, the right column
   (main + footer) is **the pane** `data-home-pane`. The whole two-column
   structure is **the split** inside **the shell** (`data-home-shell`).
+- **2K adaptation** — a dedicated `@media (min-width: 1920px)` layer: on 2K+
+  screens the max-w-capped columns (rail 672px + pane 768px) no longer fill
+  the shell row, so the split is centred (`justify-content: center`) instead
+  of leaving a big empty right gutter. `--zen-shift` is measured from the
+  pane's *untransformed* centre, so zen stays exactly centred at any width
+  (the shift is `railWidth / 2` only while the columns fill the row; on 2K it
+  differs and can even be negative).
 - **One-screen interaction** — on one-screen pages `pinBottomRails()` freezes
   the aside + footer as `position:fixed` and measures their `left` with
   `getBoundingClientRect()`, which *includes* the zen transform; a re-pin
@@ -765,11 +778,59 @@ leader, so a third key inside the 1.2 s leader window is a no-op).
 - **Motion** — pure CSS in `baseof.html` (`@media min-width:768px`):
   `html.zen` slides the rail (`header` + `aside`) off the left edge
   (`translateX(calc(-100% - 4rem))`, fading out, `pointer-events:none`) and
-  shifts the pane (`main` + `footer`) left by `--zen-shift`. Because
-  the shell's padding is symmetric, `--zen-shift = railWidth / 2` puts
-  the pane's centre exactly on the viewport centre. `--zen-shift` is
-  measured by JS at toggle time and on resize, so it tracks the real rendered
-  rail width (breakpoint + `max-w-2xl` cap).
+  shifts the pane (`main` + `footer`) left by `--zen-shift`. `--zen-shift` is
+  the measured distance from the pane's *untransformed* centre to the
+  viewport centre (`--zen-shift = paneCentre − vw/2`, which is `railWidth / 2`
+  only while the columns fill the row), so the pane lands exactly centred at
+  any width. It is measured by JS at toggle time, on load and on resize.
+- **Table widening is part of the motion** — a Table Spread table animates
+  its `width` on the same `html.zen-anim` gate, starting WITH the pane (no
+  lag) but running a beat longer (`width .65s cubic-bezier(.4,0,.2,1)` vs the
+  rail/pane `.55s`), so a wide table can never finish widening before the
+  rail has cleared. It reverses on exit. `measureWidths()` measures on a
+  detached clone so the live table's width only changes once (no CSS
+  max-width cap — a cap would snap the table shut the moment `html.zen` is
+  dropped and kill the reverse animation); the transition then slides from
+  the pre-toggle width.
+- **Table Fitting (宽窄两态)** — the named feature that gives a body table
+  a width that fits the pane: compact, with the headers on one line when
+  there is room, and never wider than the pane. Implemented in
+  `site-scripts.html` (`fitTables`, exposed as `window.tokiwaFitTables`) +
+  `.tbl-fit` + `.tbl-oneline` in `baseof.html`. *The algorithm* — for each
+  table, measure three widths with the table pinned to `width:1px`
+  (a `width:auto` table stretches to fill the pane, so it would report the
+  pane instead of its honest sizes):
+    `minContent` — every cell wraps to its minimum;
+    `hdrReq`     — headers on one line, body wraps;
+    `maxContent` — nothing wraps at all.
+  Let `needed = max(minContent, hdrReq)`:
+  - `needed ≤ pane` → auto layout, `width: needed`, add `.tbl-oneline`
+    (`th { white-space:nowrap }`) — compact, headers one line;
+  - `needed >  pane` → narrow form: `.tbl-fit` (`table-layout:fixed;
+    width:100%`), edges flush with the pane, no scroll, no slide, columns
+    frozen at their natural proportions.
+  - **why fixed layout** — auto layout cannot size a table below its
+    min-content, so squeezing an over-wide table (e.g. an 8-column
+    source-code table) into the pane needs `table-layout:fixed`.
+- **Table Spread (突破边界)** — the named feature that lets a table break
+  past its container's left/right edges and stretch toward both sides — but
+  only **as needed**: never wider than its content demands, and capped by
+  `--tbl-spread-max`. In this theme it activates in **zen mode**: a table
+  whose max-content exceeds the pane gets auto layout,
+  `width: min(maxContent, --tbl-spread-max)`, plus `.tbl-oneline` when that
+  width can afford the headers. A table with little content stays compact
+  (its own maxContent); only a content-heavy table reaches the cap.
+  *Portable contract:* a host provides `--tbl-spread-max` (this theme
+  measures it as the normal-mode span from the rail's left edge to the
+  pane's right edge — narrower on a 13-inch laptop, wider on 2K); the JS
+  toggles `.tbl-spread` instead of `.tbl-fit` when spread is available.
+  - **wide-ness is judged by max-content, not the wrapped width** — on a
+    wide screen the pane is broad enough that a wide table can still wrap to
+    fit it, so it must be recognised as wide by its *nowrap* width or it
+    would never stretch.
+  - the centring works because in zen the pane is already shifted so its
+    centre sits on the viewport centre; a spread table and a normal table
+    both resolve `left:50%` against the same pane centre.
 - **Triggers** — `zz` (second `z` press, repeats ignored); the same
   transition replays in reverse on exit. Independent of the vim engine, so
   it works in the article, the posts list and every taxonomy page.

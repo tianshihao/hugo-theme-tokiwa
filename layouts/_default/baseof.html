@@ -649,6 +649,19 @@
 			}
 		}
 
+		/* ---- 2K adaptation (>= 1920px) ----------------------------------
+		   On 2K+ screens the max-w-capped columns (rail 672px + pane 768px)
+		   no longer fill the shell row, so without this the pane sits left of
+		   centre with a big empty right gutter. This dedicated layer centres
+		   the split; zen's --zen-shift (measured by site-scripts) then puts the
+		   pane exactly on the viewport centre. Below 1920px the layout is the
+		   current one — unchanged. */
+		@media (min-width: 1920px) {
+			[data-home-shell] {
+				justify-content: center;
+			}
+		}
+
 		/* ---- Zen mode (zz) ----------------------------------------------
 		   VS Code-style zen, toggled by site-scripts on `zz` (desktop only —
 		   the two-column split exists only at md+). html.zen is the global
@@ -671,6 +684,15 @@
 			html.zen-anim [data-home-shell] > [data-home-rail],
 			html.zen-anim [data-home-shell] > [data-home-pane] {
 				transition: transform .55s cubic-bezier(.4, 0, .2, 1), opacity .45s ease;
+			}
+			/* the wide table's narrow→wide stretch plays on the same toggle
+			   (html.zen-anim), starting WITH the pane so there is no lag —
+			   but it runs a beat longer than the rail's slide, so a wide
+			   table can never finish widening before the rail has cleared.
+			   translateX(-50%) re-centres the table as its width animates,
+			   so it stays centred throughout. Reverses on exit. */
+			html.zen-anim .c-rich-text table {
+				transition: width .65s cubic-bezier(.4, 0, .2, 1);
 			}
 			html.zen [data-home-shell] > [data-home-rail] {
 				transform: translateX(calc(-100% - 4rem)); /* off the left edge */
@@ -749,6 +771,50 @@
 			margin-left: auto;
 			margin-right: auto;
 		}
+		/* Table Fitting (the narrow/wide two forms) — body tables in normal
+		   mode: a table may never be wider than the pane, never scroll and
+		   never slide. Its natural (wide) form keeps the natural width and
+		   centres like an image; a table whose content would exceed the pane
+		   takes the narrow form, compressed to fit. Auto layout refuses to
+		   shrink below a table's min-content, so the only way to squeeze an
+		   over-wide table (e.g. an 8-column source-code table) is
+		   table-layout:fixed + width:100% — the .tbl-fit class toggled by
+		   site-scripts — which pins its edges flush with main's left/right
+		   lines. Cells wrap (no nowrap) so the fixed columns can't overflow;
+		   headers wrap only as needed. */
+		.c-rich-text table {
+			margin-left: auto;
+			margin-right: auto;
+		}
+		/* compact fit: the JS sizes the table to the width that puts the
+		   headers on one line; this keeps them there (applied only when the
+		   chosen width can afford the headers) */
+		.c-rich-text table.tbl-oneline th {
+			white-space: nowrap;
+		}
+		/* narrow form: compressed to the pane (fixed layout is the only way
+		   below min-content); columns keep their natural proportions */
+		.c-rich-text table.tbl-fit {
+			table-layout: fixed; /* compressed to the pane */
+			width: 100%;
+		}
+		/* Table Spread (zen: break past main's edges) — a wide table may break
+		   past main's left/right edges and stretch toward BOTH sides so its
+		   data reads comfortably (zen's focus semantics). The JS sets
+		   width = min(max-content, --tbl-spread-max) "as needed" (no CSS
+		   max-width cap: it would snap the table shut the moment zen is
+		   dropped, killing the reverse width animation on exit). The table is
+		   centred on the viewport — position:left:50% + translateX(-50%)
+		   works because the pane is already shifted so its centre sits on the
+		   viewport centre — and stays inside the whitespace cap because the
+		   JS width never exceeds --tbl-spread-max (the normal-mode span from
+		   the rail's left edge to the pane's right edge, narrower on a
+		   13-inch laptop, wider on 2K). */
+		html.zen .c-rich-text table {
+			position: relative;
+			left: 50%;
+			transform: translateX(-50%);
+		}
 		.c-rich-text figure.c-figure > figcaption {
 			font-family: "Source Han Serif SC", "Source Han Serif CN", "Noto Serif CJK SC", serif;
 			font-size: 0.8125rem;
@@ -809,6 +875,16 @@
 			white-space: nowrap; /* keep "99." on one line */
 			color: var(--eucalyptus-400); /* eucalyptus-400, same teal as the dot */
 			font-weight: 600;
+		}
+		/* Hugo's markdown footnotes use the SAME numbering as the article's
+		   ordered lists — the theme's teal counter (::before "N."), no browser
+		   markers. app.css's .footnotes ol { list-style-type: decimal }
+		   out-specifies baseof's list-style:none and would add a second set of
+		   numbers on top of the counter, so kill the decimal here; everything
+		   else (counter, ::before, hanging indent) comes from the generic
+		   article ol rules. */
+		.c-rich-text .footnotes ol {
+			list-style-type: none; /* only the theme's teal counter shows */
 		}
 
 		/* Blockquotes sit flush with the body text — the compiled scss insets
