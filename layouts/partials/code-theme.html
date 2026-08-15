@@ -51,13 +51,75 @@
 	/* Fenced code blocks (emitted by the render-codeblock hook, coloured by the
 	   TextMate engine). Font sizes: 12px in blocks, 14px inline. The container
 	   bg/fg come from the design tokens --code-bg/--code-fg, which switch per
-	   body class (see static/css/tokens.css). */
+	   body class (see static/css/tokens.css). Corners are SQUARE (the compiled
+	   scss's rounded bottom-right is removed) and the border keeps its theme
+	   teal. The corner is sharpened WITHOUT touching the border colour: a 0-blur
+	   hairline ring just outside it follows the same 90° corners exactly, so
+	   each corner point is drawn twice and reads as a crisp cut. */
 	.c-rich-text pre.tm-code {
 		font-size: 12px; line-height: 1.6;
 		background-color: var(--code-bg);
 		color: var(--code-fg);
+		border-radius: 0;   /* square corners */
+		box-shadow: 0 0 0 1px rgba(15, 23, 42, 0.05); /* hard ring, no blur — crisps the corners */
+		padding-top: 3.5em; /* clear the language badge / copy button, with room to breathe */
 	}
+	.c-rich-text pre.tm-code code { display: block; }
 	.c-rich-text :not(pre) > code { font-size: 0.875em; }
+
+	/* VS Code-style line-number gutter: a fixed-width digit column
+	   (--tm-gutter-w is set by tm-highlight to the widest line number), numbers
+	   right-aligned, muted and NON-selectable. The gap to the code is a
+	   margin-right — OUTSIDE the flex box, so the theme's global border-box
+	   can't swallow it (a padding would be eaten by box-sizing:border-box). */
+	.tm-line { display: flex; align-items: baseline; }
+	.tm-gutter {
+		flex: 0 0 var(--tm-gutter-w, 2.5ch);
+		text-align: right;
+		margin-right: 20px;        /* the breathing room before the code */
+		color: var(--color-text-faint); /* muted, like VS Code line numbers */
+		user-select: none;              /* copying never grabs the numbers */
+		white-space: nowrap;
+	}
+	.tm-line-code { flex: 1 1 auto; min-width: 0; }
+
+	/* language badge (top-left) + copy button (top-right): two EQUAL-width,
+	   square, borderless frosted chips in the theme's teal. Each corner of the
+	   article keeps one; the shared width (--code-badge-w, set by tm-highlight
+	   to the widest label) centres the language name and keeps 'copied' from
+	   overflowing. Translucent teal + backdrop blur (no outline) — the frame
+	   is the tint itself, not a stroke. */
+	.tm-figure { position: relative; }
+	.tm-lang,
+	.tm-copy {
+		position: absolute;
+		top: 0.6rem;
+		z-index: 2;
+		width: var(--code-badge-w, 4.5rem); /* equal widths, labels centred */
+		text-align: center;
+		font-size: 11px;
+		line-height: 1;
+		padding: 0.35rem 0.5rem;
+		border-radius: 0;                 /* square corners — no rounded chips */
+		color: var(--teal-dark);          /* deep teal text (design token) */
+		background: rgba(73, 190, 183, 0.16); /* --teal-hover at 16%, translucent */
+		-webkit-backdrop-filter: blur(8px);
+		backdrop-filter: blur(8px);
+		border: none;                     /* no outline — the tint is the edge */
+	}
+	.tm-lang { left: 0.6rem; }
+	.tm-copy { right: 0.6rem; cursor: pointer; }
+	.tm-copy:hover { background: rgba(73, 190, 183, 0.30); }
+
+	/* Rainbow brackets: matched () [] {} <> get a hue by nesting depth
+	   (.tm-br0..tm-br5, cycled) overriding the token colour. These spans are
+	   children of the token spans, so their own color wins over inheritance. */
+	.tm-br0 { color: var(--br0); }
+	.tm-br1 { color: var(--br1); }
+	.tm-br2 { color: var(--br2); }
+	.tm-br3 { color: var(--br3); }
+	.tm-br4 { color: var(--br4); }
+	.tm-br5 { color: var(--br5); }
 </style>
 
 <script>

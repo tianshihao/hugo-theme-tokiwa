@@ -666,3 +666,68 @@ The colors *inside* code blocks (keywords, strings, numbers, comments…) are
   (most specific scope first, longest rule wins, later identical rule wins).
 - Code blocks are emitted raw by `layouts/_default/_markup/render-codeblock.html`
   (`<pre class="tm-code" data-lang>`) and coloured by the engine at runtime.
+
+## 11. Code block chrome — gutter, badges & square corners
+
+The furniture *around* the code (line numbers, language label, copy button,
+corners) is our own design, styled in `layouts/partials/code-theme.html` and
+sized by the engine at runtime. Everything is square and borderless; the only
+stroke is the block's teal border (kept from §9) sharpened by a 0-blur ring.
+
+- **Line-number gutter** — VS Code style: each logical line is
+  `<div class="tm-line">` with a fixed digit column `.tm-gutter` (numbers
+  right-aligned, muted, `user-select:none`) + `.tm-line-code`. The gutter's
+  width is `--tm-gutter-w`, measured by `tm-highlight` to the widest line
+  number (so `1` and `100` never crowd the code); the gap to the code is a
+  `margin-right` (NOT padding — the theme's global `box-sizing:border-box`
+  would swallow a padding into the flex basis). The copy never includes the
+  numbers because copying reads `code[data-src]` (the raw source captured
+  before tokenizing).
+- **Equal-width square badges** — language label `.tm-lang` (top-left) and
+  copy button `.tm-copy` (top-right). Both are `border-radius:0`,
+  `border:none`, translucent teal (`rgba(73,190,183,.16)` = `--teal-hover` at
+  16%) with `backdrop-filter:blur(8px)`, text in `--teal-dark`. The frame is
+  the tint itself, not a stroke. They share one width `--code-badge-w`, set by
+  `tm-highlight` to the widest of the label / `copy` / `copied` / `failed`
+  text (≈ label width + 1rem padding), so names centre and `copied` never
+  overflows. `pre.tm-code` has `padding-top:3.5em` so the chips float clear of
+  the code with ~10px of air. Clicking copy writes `code[data-src]` to the
+  clipboard and fires the **same "Copied!" burst as the RSS icon** — the
+  label stays `copy` (the burst is the feedback), only a rejected write shows
+  `failed` briefly. The burst lives in `site-scripts.html` as
+  `window.tokiwaCopyBurst` (single source, shared by RSS + code blocks).
+  The label shows the language's **formal name**: `data/code-langs.yaml`
+  maps fence short names (`cpp` → `C++`, `cmake` → `CMake`); unknown names
+  fall back to the fence text, and `data-lang` keeps the short name so the
+  engine can still look up the grammar.
+- **Square corners** — the compiled scss's rounded bottom-right is overridden
+  to `border-radius:0`. The border colour stays the theme teal (unchanged);
+  the corners are sharpened *without* touching it by a 0-blur hairline ring
+  `box-shadow:0 0 0 1px rgba(15,23,42,.05)` that follows the same 90° corners
+  exactly — each corner point is drawn twice and reads as a crisp cut.
+- **Rainbow brackets** — matched `() [] {} <>` get a hue by nesting depth
+  (VS Code's bracket-pair-colorizer). Six palette tokens `--br0..--br5`
+  (§9, `tokens.css`) are cycled by a stack that spans the whole block:
+  an opener's colour = depth before push, a closer reuses its opener's index
+  so the pair always matches. `tm-highlight` wraps each bracket char in
+  `<span class="tm-br{n}">` (a child of the token span, so its own colour
+  wins) and **skips brackets inside strings/comments** — detected from the
+  token scopes — so a `'{'` in a comment or string neither colours nor throws
+  off the depth. Palette: five of the six hues are **exact night-owl-light
+  theme colours** (red `#d3423e`, teal `#0c969b`, blue `#4876d6`, purple
+  `#994cc3`, magenta `#aa0982`) with one complementary orange `#c2651f`
+  between red and teal — then cycles.
+- **Angle brackets** — `<`/`>` double as comparison & shift operators, so
+  they need extra care. A bracket-looking `<>` is coloured only when either
+  (a) the grammar marks it `punctuation.section.angle-brackets.*` (template
+  definition / call / alias), or (b) it's an operator-scoped `<>` that
+  *directly abuts an identifier* — `Name<…>` — because the cpp grammar misses
+  `std::vector<int> v;` (it scopes those as `keyword.operator.comparison`).
+  Spaced `a < b`, `<<` shifts and `->` arrows stay plain. A `>` matches the
+  nearest `<` on the stack; a `<` farther than `ANGLE_MAX` (160 chars) without
+  a `>` is retracted as a shift/redirection phantom. `#include <header>` is a
+  special case: the grammar scopes the header as a string, but the `<`/`>`
+  are the header-name delimiters, so they get an isolated pair at the current
+  depth (never touching the nesting stack) — matching how VS Code visibly
+  colours them.
+

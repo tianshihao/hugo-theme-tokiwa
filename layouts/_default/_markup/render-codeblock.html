@@ -1,5 +1,17 @@
 {{- /* Fenced code blocks are emitted raw; the front-end TextMate engine
         (js/tm-highlight.min.js, see layouts/partials/code-theme.html) tokenizes
         and colours them with VS Code's grammar + the active color theme.
-        .Type = fenced language (e.g. "cpp"); .Inner = the code text. */ -}}
-<pre class="tm-code" data-lang="{{ .Type }}"><code>{{ .Inner }}</code></pre>
+        .Type = fenced language (e.g. "cpp"); .Inner = the code text.
+        The <figure> wraps the block so the language badge (top-left) and the
+        copy button (top-right) float over its corners without scrolling with
+        the code (the <pre> itself scrolls internally).
+        The badge shows the language's FORMAL name ("cpp" → "C++") via the
+        theme data/code-langs.yaml map; data-lang keeps the short fence name
+        so the engine can look up its grammar. */ -}}
+{{- $lang := lower .Type -}}
+{{- $display := index site.Data "code-langs" $lang | default .Type -}}
+<figure class="tm-figure">
+	<pre class="tm-code" data-lang="{{ .Type }}"><code>{{ .Inner }}</code></pre>
+	<span class="tm-lang" aria-hidden="true">{{ $display }}</span>
+	<button class="tm-copy" type="button">copy</button>
+</figure>

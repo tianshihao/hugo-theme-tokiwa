@@ -2791,6 +2791,10 @@
 			}, 300 + 700 + 420 + 300);
 		}
 
+		/* Expose the burst so the code-block copy buttons (tm-highlight) can
+		   reuse the same "Copied!" toast — single source of the effect. */
+		window.tokiwaCopyBurst = rssToast;
+
 		document.addEventListener('click', function (e) {
 			var el = e.target;
 			var btn = el && el.closest ? el.closest('[data-rss-copy]') : null;

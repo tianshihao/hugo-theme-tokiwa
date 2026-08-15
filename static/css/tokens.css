@@ -51,6 +51,16 @@
   --list-gap:           0.665rem; /* the ONE marker↔text gap (≈ 10.6px): ul dot,
                                     ol "1." and ol "10." all get the same */
   --list-symbol-size:   0.4em;   /* ul dot diameter (left edge on the column line) */
+
+  /* ---- rainbow brackets (code blocks): 6 hues, cycled by nesting depth.
+         Five are exact hues from the night-owl-light theme's own syntax
+         palette; the orange fills the rainbow gap between red and teal. ---- */
+  --br0: #d3423e;  /* red    — theme operator/keyword red */
+  --br1: #c2651f;  /* orange — complementary, fits the theme's amber family */
+  --br2: #0c969b;  /* teal   — theme constant/number teal */
+  --br3: #4876d6;  /* blue   — theme keyword/function blue */
+  --br4: #994cc3;  /* purple — theme type purple */
+  --br5: #aa0982;  /* magenta— theme string/identifier magenta */
 }
 
 /* ---- code containers (per params.codeScheme) ---- */
