@@ -28,6 +28,17 @@
 			} catch (err) {}
 		})();
 	</script>
+	{{/* Zen mode (zz) is a global state persisted in sessionStorage; restore it
+	   BEFORE first paint so a reload doesn't flash the two-column layout. */}}
+	<script>
+		(function () {
+			try {
+				if (sessionStorage.getItem('tokiwa.zen') === '1') {
+					document.documentElement.classList.add('zen');
+				}
+			} catch (err) {}
+		})();
+	</script>
 	<meta charset="utf-8">
 	<meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
 	{{/* NOTE: the Site's title, and if there is a page title, that is set too */}}
@@ -638,6 +649,39 @@
 			}
 		}
 
+		/* ---- Zen mode (zz) ----------------------------------------------
+		   VS Code-style zen, toggled by site-scripts on `zz` (desktop only —
+		   the two-column split exists only at md+). html.zen is the global
+		   state (restored before paint from sessionStorage). On: the rail
+		   (header + aside, `data-home-rail`) slides fully off the left edge,
+		   fading as it goes; the pane (main + footer, `data-home-pane`) shifts
+		   left by --zen-shift (half the rail's width, measured by JS) so the
+		   article sits centred in the full viewport. The shell's padding is
+		   symmetric, so L/2 exactly puts the pane's centre on the viewport
+		   centre. The same transition replays the motion in reverse on exit. */
+		@media (min-width: 768px) {
+			[data-home-shell] > [data-home-rail],
+			[data-home-shell] > [data-home-pane] {
+				will-change: transform, opacity;
+			}
+			/* Transitions only exist while a zz toggle is in flight
+			   (html.zen-anim): a page load or a content swap must never replay
+			   the slide — the state machine animates only on the explicit
+			   enter/exit, then settles and disables transitions again. */
+			html.zen-anim [data-home-shell] > [data-home-rail],
+			html.zen-anim [data-home-shell] > [data-home-pane] {
+				transition: transform .55s cubic-bezier(.4, 0, .2, 1), opacity .45s ease;
+			}
+			html.zen [data-home-shell] > [data-home-rail] {
+				transform: translateX(calc(-100% - 4rem)); /* off the left edge */
+				opacity: 0;
+				pointer-events: none;
+			}
+			html.zen [data-home-shell] > [data-home-pane] {
+				transform: translateX(calc(-1 * var(--zen-shift, 0px)));
+			}
+		}
+
 		/* Article pages: the site title (h1) is now the same size as every other
 		   page, so the article title — the page's identity — steps one Tailwind
 		   size above h1 to keep it the dominant heading. */
@@ -853,23 +897,23 @@
 
 	<body class="bg-gray-100 text-gray-700 font-sans{{ if $oneScreen }} home-one-screen{{ end }}{{ if .IsPage }} is-article{{ end }} code-{{ default "quiet-light" .Site.Params.codeScheme }}">
 	<div data-home-shell class="p-6 sm:p-10 md:p-16 flex flex-wrap{{ if $oneScreen }} home-one-screen-shell{{ end }}">
-		<header class="w-full md:w-2/5 xl:w-1/2 md:pr-12 lg:pr-20 xl:pr-24 order-1 md:order-1 max-w-2xl">
+		<header data-home-rail class="w-full md:w-2/5 xl:w-1/2 md:pr-12 lg:pr-20 xl:pr-24 order-1 md:order-1 max-w-2xl">
 			<div
 				class="z-50 bg-gray-100 bg-opacity-75 bg-opacity-custom lg:min-w-0.7 max-w-xl md:float-right md:text-right leading-loose tracking-tight pt-2">
 				{{ block "header" . }}{{ partial "site-header.html" .}}{{ end }}
 			</div>
 		</header>
-		<main role="main" data-home-main class="w-full md:w-3/5 xl:w-1/2 max-w-3xl order-2 md:order-2 min-h-70vh pt-2 pb-4">
+		<main role="main" data-home-main data-home-pane class="w-full md:w-3/5 xl:w-1/2 max-w-3xl order-2 md:order-2 min-h-70vh pt-2 pb-4">
 			{{ block "main" . }}{{ end }}
 		</main>
 		<div data-home-row-break class="w-full h-0 flex-none order-3"></div>
 		<aside role="contentinfo"
-			data-home-aside class="w-full md:w-2/5 xl:w-1/2 md:pr-12 lg:pr-20 xl:pr-24 order-4 md:order-3 md:sticky md:bottom-0 self-end max-w-2xl">
+			data-home-aside data-home-rail class="w-full md:w-2/5 xl:w-1/2 md:pr-12 lg:pr-20 xl:pr-24 order-4 md:order-3 md:sticky md:bottom-0 self-end max-w-2xl">
 			<div class="md:float-right md:text-right leading-loose tracking-tight">
 				{{ block "aside" . }}{{ partial "site-aside.html" . }}{{ end }}
 			</div>
 		</aside>
-		<footer data-home-footer class="w-full md:w-3/5 xl:w-1/2 order-3 max-w-3xl md:order-4 pt-2 self-end">
+		<footer data-home-footer data-home-pane class="w-full md:w-3/5 xl:w-1/2 order-3 max-w-3xl md:order-4 pt-2 self-end">
 			{{ block "footer" . }}{{ if partial "one-screen.html" . }}{{ partial "home-pager.html" . }}{{ end }}{{ end }}
 		</footer>
 		{{ block "scripts" . }}{{ partial "site-scripts.html" . }}{{ end }}

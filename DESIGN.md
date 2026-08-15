@@ -731,3 +731,46 @@ stroke is the block's teal border (kept from §9) sharpened by a 0-blur ring.
   depth (never touching the nesting stack) — matching how VS Code visibly
   colours them.
 
+## 12. Zen mode — `zz`
+
+A VS Code-style focus mode, desktop only (the two-column split only exists at
+`md+`). `zz` toggles it; `za` stays the TOC toggle (both live on the `z`
+leader, so a third key inside the 1.2 s leader window is a no-op).
+
+- **Global state** — `html.zen` + a `zenActive` flag in `site-scripts`
+  (`window.tokiwaToggleZen`), persisted to `sessionStorage` (`tokiwa.zen`) and
+  restored by a `<head>` script **before first paint**, so a reload never
+  flashes the two-column layout. `--zen-shift` lives on `<html>` (not the
+  shell) so it survives full page loads and SPA content swaps, and is
+  re-measured on load. Leaving the desktop breakpoint auto-exits.
+- **Motion is a state machine** — the CSS transition is gated behind a
+  transient `html.zen-anim` class that `tokiwaToggleZen` adds only for the
+  duration of a toggle (then drops after ~700 ms). So the slide plays exactly
+  once on enter and once on exit; a page load or an SPA content swap while in
+  zen settles directly into the centred layout and **never replays the
+  animation**.
+- **Naming** — the two halves of the shell have semantic names (purely
+  additive `data-*` attributes, no layout/behaviour impact): the left column
+  (header + aside) is **the rail** `data-home-rail`, the right column
+  (main + footer) is **the pane** `data-home-pane`. The whole two-column
+  structure is **the split** inside **the shell** (`data-home-shell`).
+- **One-screen interaction** — on one-screen pages `pinBottomRails()` freezes
+  the aside + footer as `position:fixed` and measures their `left` with
+  `getBoundingClientRect()`, which *includes* the zen transform; a re-pin
+  while zen is on would re-apply the shift on top of the CSS one and shove
+  the footer off-centre (it runs inside the one-screen rAF loop, so it
+  re-fires after every toggle). `pinBottomRails()` therefore temporarily
+  drops `html.zen` while measuring, so the fixed pin always uses the
+  untransformed layout position.
+- **Motion** — pure CSS in `baseof.html` (`@media min-width:768px`):
+  `html.zen` slides the rail (`header` + `aside`) off the left edge
+  (`translateX(calc(-100% - 4rem))`, fading out, `pointer-events:none`) and
+  shifts the pane (`main` + `footer`) left by `--zen-shift`. Because
+  the shell's padding is symmetric, `--zen-shift = railWidth / 2` puts
+  the pane's centre exactly on the viewport centre. `--zen-shift` is
+  measured by JS at toggle time and on resize, so it tracks the real rendered
+  rail width (breakpoint + `max-w-2xl` cap).
+- **Triggers** — `zz` (second `z` press, repeats ignored); the same
+  transition replays in reverse on exit. Independent of the vim engine, so
+  it works in the article, the posts list and every taxonomy page.
+

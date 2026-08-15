@@ -160,8 +160,18 @@
 
 			clearFixedRails();
 			var bottomGap = getTargetBottomGap();
+			/* In zen the pane is translated left; getBoundingClientRect()
+			   includes that transform, so a re-pin would re-apply the shift on
+			   top of the CSS one and shove the fixed footer/aside off-centre
+			   (this runs inside the one-screen rAF loop, so it re-fires after
+			   every zen toggle). Measure the untransformed layout position by
+			   temporarily dropping the zen class. */
+			var html = document.documentElement;
+			var zenOn = html.classList.contains('zen');
+			if (zenOn) { html.classList.remove('zen'); }
 			var asideRect = homeAside.getBoundingClientRect();
 			var footerRect = homeFooter.getBoundingClientRect();
+			if (zenOn) { html.classList.add('zen'); }
 
 			homeAside.style.position = 'fixed';
 			homeAside.style.left = String(Math.round(asideRect.left)) + 'px';
@@ -1335,7 +1345,13 @@
 				return currentNavIndex(navCursor.items());
 			},
 			onSelect: function (a) {
-				if (a.scrollIntoView) {
+				/* In zen the rail is off-screen: skip the smooth scroll — it
+				   would animate an invisible nav list on every j/k (wasted
+				   rAF + layout). The vim-active highlight class still toggles
+				   (cheap; the compositor culls painting the opacity:0 layer)
+				   and the pane preview keeps loading content — that is the
+				   part that stays useful in zen. */
+				if (a.scrollIntoView && !document.documentElement.classList.contains('zen')) {
 					a.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
 				}
 			}
@@ -2321,6 +2337,76 @@
 			}
 		}, true);
 
+		/* ---- zen mode (zz) ---------------------------------------------
+		   VS Code-style zen: hide the rail (header + aside) and centre the pane
+		   (main + footer) in the full viewport (desktop only — the two-column
+		   split only exists at md+). `zz` toggles it; html.zen drives the CSS
+		   transition. The pane shifts left by half the rail's width (--zen-shift)
+		   so it lands centred; the rail slides fully off-screen. The state is
+		   global and persisted to sessionStorage (restored before paint by a
+		   baseof head script), so it survives navigation in the tab. */
+		var zenActive = document.documentElement.classList.contains('zen');
+		var zenMedia = window.matchMedia('(min-width: 768px)');
+		function setZen(on) {
+			zenActive = on;
+			document.documentElement.classList.toggle('zen', on);
+			try {
+				sessionStorage.setItem('tokiwa.zen', on ? '1' : '0');
+			} catch (err) {}
+		}
+		/* --zen-shift lives on <html> (NOT the shell): it survives both full page
+		   loads and SPA content swaps. It only depends on the rail's width —
+		   viewport-driven (md:w-2/5 / xl:w-1/2, capped at max-w-2xl) — so one
+		   measurement applies on every page. Symmetric shell padding ⇒ shifting
+		   the pane by L/2 puts its centre on the viewport centre. */
+		function measureZenShift() {
+			var rail = document.querySelector('[data-home-shell] > [data-home-rail]');
+			if (!rail) {
+				return;
+			}
+			document.documentElement.style.setProperty('--zen-shift', (rail.offsetWidth / 2) + 'px');
+		}
+		var zenAnimTimer = null;
+		window.tokiwaToggleZen = function () {
+			var rail = document.querySelector('[data-home-shell] > [data-home-rail]');
+			if (!rail || !zenMedia.matches) {
+				return;
+			}
+			var html = document.documentElement;
+			/* state machine: transitions exist only while this toggle runs —
+			   enable html.zen-anim, flip the state, then drop it once the
+			   animation settles so page loads / content swaps never replay the
+			   slide (the CSS gates transition behind html.zen-anim) */
+			html.classList.add('zen-anim');
+			setZen(!zenActive);
+			if (zenActive) {
+				measureZenShift();
+			}
+			clearTimeout(zenAnimTimer);
+			zenAnimTimer = setTimeout(function () {
+				html.classList.remove('zen-anim');
+			}, 700);
+		};
+		/* Re-measure on a fresh load: the head script re-applies html.zen before
+		   paint, so we must set --zen-shift here too (site-scripts is a
+		   synchronous end-of-body script, so this runs before first paint) —
+		   otherwise the article loads with the left column hidden but NOT
+		   centred (the old inline --zen-shift on the shell died with the
+		   previous page). */
+		if (zenActive && zenMedia.matches) {
+			measureZenShift();
+		}
+		window.addEventListener('resize', function () {
+			if (!zenActive) {
+				return;
+			}
+			if (!zenMedia.matches) {
+				setZen(false); /* left desktop → exit zen */
+				return;
+			}
+			measureZenShift();
+		});
+
 		/* ---- vim input dispatch (keyboard & mouse) ------------------------
 		   The global keydown / keyup / resize handlers that run the engine:
 		   IME-safe key capture (e.isComposing / keyCode 229), leader keys,
@@ -2394,6 +2480,15 @@
 					e.preventDefault();
 					if (window.tokiwaToggleToc) {
 						window.tokiwaToggleToc();
+					}
+					return;
+				}
+				/* zz: toggle zen mode (desktop). A held z's repeats are ignored so
+				   a toggle needs a deliberate second press. */
+				if (key === 'z' && !e.repeat) {
+					e.preventDefault();
+					if (window.tokiwaToggleZen) {
+						window.tokiwaToggleZen();
 					}
 					return;
 				}
