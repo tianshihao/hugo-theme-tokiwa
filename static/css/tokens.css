@@ -15,54 +15,109 @@
    ========================================================================== */
 :root {
   /* ---- neutrals ---- */
-  --color-bg:         #F7FAFC;  /* page background (gray-50) */
-  --color-surface:    #FFFFFF;  /* cards / white */
-  --color-text:       #4A5568;  /* body text (gray-700) */
-  --color-text-muted: #718096;  /* secondary text (gray-600) */
-  --color-text-faint: #A0AEC0;  /* placeholder (gray-400) */
-  --color-gray-100:   #EDF2F7;  /* light gray surface */
-  --color-heading:    #01513A;  /* headings — deep green */
+  --color-bg: #F7FAFC;
+  /* page background (gray-50) */
+  --color-surface: #FFFFFF;
+  /* cards / white */
+  --color-text: #4A5568;
+  /* body text (gray-700) */
+  --color-text-muted: #718096;
+  /* secondary text (gray-600) */
+  --color-text-faint: #A0AEC0;
+  /* placeholder (gray-400) */
+  --color-gray-100: #EDF2F7;
+  /* light gray surface */
+  --color-heading: #01513A;
+  /* headings — deep green */
 
   /* ---- eucalyptus teal (original scale names) ---- */
-  --eucalyptus-300:   #9ACFBF;
-  --eucalyptus-400:   #4EAB90;
-  --eucalyptus-600:   #028760;
+  --eucalyptus-300: #9ACFBF;
+  --eucalyptus-400: #4EAB90;
+  --eucalyptus-600: #028760;
 
   /* ---- extended teal (functional names) ---- */
-  --teal-hover:       #49BEB7;  /* hover states */
-  --teal-dark:        #2C726E;  /* dark teal text */
-  --teal-pale:        #B6E5E2;  /* borders + inline-code tint (absorbs slate-300) */
-  --teal-faint:       #EDF9F8;  /* very pale teal background */
+  --teal-hover: #49BEB7;
+  /* hover states */
+  --teal-dark: #2C726E;
+  /* dark teal text */
+  --teal-pale: #B6E5E2;
+  /* borders + inline-code tint (absorbs slate-300) */
+  --teal-faint: #EDF9F8;
+  /* very pale teal background */
 
   /* ---- accents ---- */
-  --medium-red-violet-600: #B23B83; /* tag underline */
-  --medium-red-violet-400: #D77AB2; /* tag underline hover */
-  --red-600:            #DC2626;    /* failed state */
-  --focus-ring:         rgba(59, 130, 246, .5); /* focus outline */
+  --medium-red-violet-600: #B23B83;
+  /* tag underline */
+  --medium-red-violet-400: #D77AB2;
+  /* tag underline hover */
+  --red-600: #DC2626;
+  /* failed state */
+  --focus-ring: rgba(59, 130, 246, .5);
+  /* focus outline */
 
   /* ---- vim highlight tints (translucent eucalyptus-600) ---- */
-  --highlight-soft:     rgba(2, 135, 96, 0.07); /* j/k list & card cursor overlay */
-  --highlight:          rgba(2, 135, 96, 0.14); /* tag / preview / nav / TOC pill */
+  --highlight-soft: rgba(2, 135, 96, 0.07);
+  /* j/k list & card cursor overlay */
+  --highlight: rgba(2, 135, 96, 0.14);
+  /* tag / preview / nav / TOC pill */
 
   /* ---- layout tokens: article list rhythm (ul dots & ol numbers) ---- */
-  --list-gutter:        1.5rem;  /* BASE ol text indent: clears "1." (≈ 13.4px) +
+  --list-gutter: 1.5rem;
+  /* BASE ol text indent: clears "1." (≈ 13.4px) +
                                     the gap. A ≥10-item list gets a wider
                                     --ol-indent from JS so the gap stays constant */
-  --list-gap:           0.665rem; /* the ONE marker↔text gap (≈ 10.6px): ul dot,
+  --list-gap: 0.665rem;
+  /* the ONE marker↔text gap (≈ 10.6px): ul dot,
                                     ol "1." and ol "10." all get the same */
-  --list-symbol-size:   0.4em;   /* ul dot diameter (left edge on the column line) */
+  --list-symbol-size: 0.4em;
+  /* ul dot diameter (left edge on the column line) */
 
   /* ---- rainbow brackets (code blocks): 6 hues, cycled by nesting depth.
-         Five are exact hues from the night-owl-light theme's own syntax
-         palette; the orange fills the rainbow gap between red and teal. ---- */
-  --br0: #d3423e;  /* red    — theme operator/keyword red */
-  --br1: #c2651f;  /* orange — complementary, fits the theme's amber family */
-  --br2: #0c969b;  /* teal   — theme constant/number teal */
-  --br3: #4876d6;  /* blue   — theme keyword/function blue */
-  --br4: #994cc3;  /* purple — theme type purple */
-  --br5: #aa0982;  /* magenta— theme string/identifier magenta */
+         Two families alternate so every nested level sits OPPOSITE its
+         parent — the strongest visual separation: even depths take the
+         purple/blue/magenta family, odd depths the pink/green/cyan family,
+         starting with the purple/blue family at depth 0. The hues are named
+         once below (--syntax-*, the single source) and aliased to the bracket
+         slots --br0..--br5, so the palette reads as named tokens and is
+         retinted in one place. Two slots reuse existing tokens
+         (--syntax-green = --teal-dark, --syntax-pink =
+         --medium-red-violet-400); the rest are the theme's established cool
+         hues (violet #5D3FD3, blue #4876d6, magenta #aa0982, cyan #0c969b).
+         ---- */
+  --syntax-purple: #5D3FD3;
+  /* violet — family 1 */
+  --syntax-pink: var(--medium-red-violet-400);
+  /* pink — family 2 (reuse) */
+  --syntax-blue: #4876d6;
+  /* blue — family 1 */
+  --syntax-green: var(--teal-dark);
+  /* green — family 2 (reuse) */
+  --syntax-magenta: #aa0982;
+  /* magenta — family 1 */
+  --syntax-cyan: #0c969b;
+  /* cyan — family 2 */
+
+  --br0: var(--syntax-purple);
+  /* family 1 (purple/blue) */
+  --br1: var(--syntax-pink);
+  /* family 2 (pink/green) */
+  --br2: var(--syntax-blue);
+  /* family 1 */
+  --br3: var(--syntax-green);
+  /* family 2 */
+  --br4: var(--syntax-magenta);
+  /* family 1 */
+  --br5: var(--syntax-cyan);
+  /* family 2 */
 }
 
 /* ---- code containers (per params.codeScheme) ---- */
-body.code-quiet-light     { --code-bg: #F5F5F5; --code-fg: #333333; }
-body.code-night-owl-light { --code-bg: #FBFBFB; --code-fg: #403F53; }
+body.code-quiet-light {
+  --code-bg: #F5F5F5;
+  --code-fg: #333333;
+}
+
+body.code-night-owl-light {
+  --code-bg: #FBFBFB;
+  --code-fg: #403F53;
+}

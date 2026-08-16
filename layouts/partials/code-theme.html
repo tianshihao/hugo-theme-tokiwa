@@ -65,8 +65,72 @@
 		border-radius: 0;   /* square corners */
 		box-shadow: 0 0 0 1px rgba(15, 23, 42, 0.05); /* hard ring, no blur — crisps the corners */
 		padding-top: 3.5em; /* clear the language badge / copy button, with room to breathe */
+		/* Normal-mode fallback (see DESIGN.md §11): a code block whose content
+		   exceeds the pane stays pinned to the pane (the knife-edge is never
+		   broken) and scrolls internally. The NATIVE scrollbar is hidden —
+		   a styled ::-webkit-scrollbar draws a classic, always-visible bar
+		   that reserves ~8px of layout (Chromium disables overlay auto-hide
+		   once it is custom-styled) — and a themed 3px auto-hiding indicator
+		   (.tm-scrollbar, built by site-scripts) shows on scroll / hover
+		   instead. Zen removes the need entirely by spreading the block
+		   (DESIGN.md §12); only a block wider than --tbl-spread-max still
+		   scrolls. */
+		overflow-x: auto;
+		scrollbar-width: none; /* Firefox: hide the native bar */
 	}
 	.c-rich-text pre.tm-code code { display: block; }
+	.c-rich-text pre.tm-code::-webkit-scrollbar { display: none; } /* Chromium: hide the native bar */
+	.c-rich-text pre.tm-code::-webkit-scrollbar-track,
+	.c-rich-text pre.tm-code::-webkit-scrollbar-thumb { display: none; }
+	/* The auto-hiding scroll indicator (see DESIGN.md §11) — an 8px square
+	   teal bar (in a 12px grabbable hit area) on the block's bottom edge, the
+	   divider colour by default and --teal-hover on hover. Created by
+	   site-scripts for every .tm-figure, positioned against the figure (which
+	   is the pre's width in every mode, including a zen spread). It fades in
+	   on scroll / hover and out after ~1.2s idle; while visible it is
+	   draggable — drag the thumb to scroll, press the track to jump (the drag
+	   is wired by site-scripts' startDrag). pointer-events is none while
+	   hidden so the bar never blocks the code, and auto only while shown so
+	   it can be grabbed. The block still scrolls by wheel / touch / keyboard
+	   regardless. */
+	.tm-scrollbar {
+		position: absolute;
+		left: 0; right: 0; bottom: 0;
+		height: 12px; /* taller hit area — easy to grab (the visible bar is 8px) */
+		pointer-events: none; /* a hidden bar must never block the code below */
+		opacity: 0;
+		transition: opacity .25s ease;
+		touch-action: none; /* horizontal drags on the bar scroll the code, not the page */
+		cursor: pointer;
+	}
+	.tm-scrollbar.is-visible {
+		opacity: 1;
+		pointer-events: auto; /* grabbable only while shown */
+	}
+	.tm-scrollbar-thumb {
+		position: absolute;
+		top: 2px; bottom: 2px; left: 0; /* 8px visible bar, centred in the hit area */
+		width: 0;
+		background: var(--eucalyptus-300);
+	}
+	.tm-scrollbar-thumb:hover { background: var(--teal-hover); }
+	/* Zen (zz): a code block whose content is wider than the pane spreads like
+	   a table (DESIGN.md §12) — the JS sizes .tm-figure to
+	   min(natural width, --tbl-spread-max) and every code figure is centred
+	   with the same left:50% + translateX(-50%) the tables use (a figure that
+	   fills the pane resolves the pair to a no-op, so non-spread blocks are
+	   unchanged). Width animates on the same html.zen-anim gate as the table
+	   width, so the slide and the widening start together. */
+	html.zen .c-rich-text .tm-figure {
+		margin-left: 0;
+		margin-right: 0;
+		position: relative;
+		left: 50%;
+		transform: translateX(-50%);
+	}
+	html.zen-anim .c-rich-text .tm-figure {
+		transition: width .65s cubic-bezier(.4, 0, .2, 1);
+	}
 	.c-rich-text :not(pre) > code { font-size: 12px; vertical-align: middle; }
 	/* headings keep a larger, heading-proportional inline code */
 	.c-rich-text h1 > code, .c-rich-text h2 > code,

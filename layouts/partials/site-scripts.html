@@ -1587,8 +1587,9 @@
 			} else if (document.querySelector('[data-taxonomy-cards] > section')) {
 				taxonomyCards.boot();
 			}
-			/* compress / stretch the new page's tables to the current pane */
-			window.tokiwaFitTables();
+			/* compress / stretch the new page's tables + code blocks to the
+			   current pane */
+			window.tokiwaFitContent();
 			window.scrollTo(0, 0);
 		}
 
@@ -2574,8 +2575,212 @@
 				cells[i].style.width = '';
 			}
 		}
+		/* Fit / spread code blocks — the code-block analogue of Table Spread
+		   (DESIGN.md §12). A block's natural width (longest line + gutter) is
+		   compared to the pane: if it fits, the block stays at the pane width
+		   in every mode (never wider than main). If it overflows, zen spreads
+		   it toward both sides — width = min(natural, --tbl-spread-max) — so
+		   the line is fully visible with NO scrollbar. Normal mode is
+		   unchanged: the block is pinned to the pane and a long line scrolls
+		   inside the themed overlay scrollbar (the designed fallback, §11).
+		   The natural width is cached on the figure: scrollWidth is only
+		   trustworthy while the pre is overflowing (a spread pass makes it
+		   fit, so scrollWidth equals the box width), so the cache is seeded /
+		   refreshed on overflow passes and reused while spread. */
+		function codeNaturalWidth(fig) {
+			var pre = fig.querySelector('pre.tm-code');
+			if (!pre) {
+				return 0;
+			}
+			/* scrollWidth is NOT a reliable natural-width measure here: the
+			   .tm-line flex rows let line-code shrink (min-width:0), so the
+			   pre's scrollWidth under-reports the widest line's real width —
+			   it missed it by the gutter margin, leaving a thin scrollbar in
+			   zen. The honest width is the pre's border-box at
+			   width:max-content. Cache it, and re-measure only when the
+			   tokenization state changes: tm-highlight (defer) adds the
+			   .tm-line gutter after this script boots, so the first
+			   measurement is the raw, gutter-less width. */
+			var tokenized = !!pre.querySelector('.tm-line');
+			if (fig._codeMaxW !== undefined && fig._codeMaxWTokenized === tokenized) {
+				return fig._codeMaxW;
+			}
+			var prev = pre.style.width;
+			pre.style.width = 'max-content';
+			var w = pre.getBoundingClientRect().width;
+			pre.style.width = prev;
+			fig._codeMaxW = w;
+			fig._codeMaxWTokenized = tokenized;
+			return w;
+		}
+		function fitCodeBlocks() {
+			var zen = document.documentElement.classList.contains('zen');
+			var figures = document.querySelectorAll('.c-rich-text .tm-figure');
+			for (var i = 0; i < figures.length; i++) {
+				var fig = figures[i];
+				var container = fig.closest('.c-rich-text');
+				if (!container) {
+					continue;
+				}
+				var available = container.clientWidth;
+				var maxW = codeNaturalWidth(fig);
+				if (zen && maxW > available + 1) {
+					var html = document.documentElement;
+					var spread = parseFloat(html.style.getPropertyValue('--tbl-spread-max'));
+					if (isNaN(spread) || spread <= 0) {
+						spread = Math.min(window.innerWidth - 160, 1440);
+					}
+					fig.style.width = Math.min(maxW, spread) + 'px';
+				} else {
+					/* explicit pane width — never auto — so the zen width
+					   transition (gated by html.zen-anim) always slides from a
+					   px before-value */
+					fig.style.width = available + 'px';
+				}
+			}
+		}
+		/* Code-block scroll indicator — the themed 3px auto-hiding bar that
+		   replaces the hidden native scrollbar (see code-theme.html + DESIGN.md
+		   §11). The native bar is display:none (a styled ::-webkit-scrollbar
+		   would draw a classic, always-visible bar that reserves ~8px and
+		   disables Chromium's overlay auto-hide), so this is the only way to
+		   get BOTH the theme's colours and auto-hide. A single capture-phase
+		   scroll listener survives tm-highlight's DOM rebuilds and SPA swaps
+		   (scroll doesn't bubble, but it does capture); mouseover gives hover
+		   feedback; the bar fades out after SCROLL_FADE idle. The thumb's
+		   size / position come from the pre's scroll position on every event,
+		   so nothing needs re-measuring on resize. */
+		(function () {
+			var SCROLL_FADE = 1200;
+			function ensureBar(fig) {
+				if (!fig._scrollBar) {
+					var bar = document.createElement('div');
+					bar.className = 'tm-scrollbar';
+					bar.innerHTML = '<div class="tm-scrollbar-thumb"></div>';
+					fig.appendChild(bar);
+					fig._scrollBar = bar;
+					bar.addEventListener('pointerdown', function (e) {
+						startDrag(fig, bar, e);
+					});
+				}
+				return fig._scrollBar;
+			}
+			function canScroll(pre) {
+				return !!(pre && pre.scrollWidth > pre.clientWidth + 1);
+			}
+			/* Drag the thumb to scroll the pre horizontally. The bar is only
+			   draggable while visible (pointer-events:auto, see code-theme.html)
+			   and only for a block that can scroll. Pressing on the thumb keeps
+			   the grab point; pressing on the track jumps (the thumb centres
+			   under the pointer). Each scrollLeft write fires a scroll event, so
+			   showBar redraws the thumb and keeps the fade timer alive — no
+			   extra redraw is needed here. */
+			function startDrag(fig, bar, e) {
+				var pre = fig.querySelector('pre.tm-code');
+				if (!canScroll(pre)) {
+					return;
+				}
+				e.preventDefault();
+				showBar(fig, pre); /* re-show + reset the fade while dragging */
+				var rect = bar.getBoundingClientRect();
+				var span = pre.clientWidth;
+				var thumb = bar.firstChild;
+				var thumbLeft = parseFloat(thumb.style.left) || 0;
+				var thumbW = parseFloat(thumb.style.width) || 0;
+				var grabOffset = (e.clientX - rect.left) - thumbLeft;
+				if (grabOffset < 0 || grabOffset > thumbW) {
+					grabOffset = thumbW / 2; /* track press → centre the thumb */
+				}
+				function move(ev) {
+					var x = (ev.clientX - rect.left - grabOffset) / span;
+					pre.scrollLeft = x * pre.scrollWidth;
+				}
+				function up() {
+					window.removeEventListener('pointermove', move);
+					window.removeEventListener('pointerup', up);
+					window.removeEventListener('pointercancel', up);
+				}
+				window.addEventListener('pointermove', move);
+				window.addEventListener('pointerup', up);
+				window.addEventListener('pointercancel', up);
+				move(e);
+			}
+			function showBar(fig, pre) {
+				var bar = ensureBar(fig);
+				if (!canScroll(pre)) {
+					clearTimeout(fig._scrollFade);
+					bar.classList.remove('is-visible');
+					return;
+				}
+				var span = pre.clientWidth;
+				var thumb = bar.firstChild;
+				thumb.style.width = Math.max(24, (span / pre.scrollWidth) * span) + 'px';
+				thumb.style.left = (pre.scrollLeft / pre.scrollWidth) * span + 'px';
+				bar.classList.add('is-visible');
+				clearTimeout(fig._scrollFade);
+				fig._scrollFade = setTimeout(function () {
+					bar.classList.remove('is-visible');
+				}, SCROLL_FADE);
+			}
+			function buildAll() {
+				var figs = document.querySelectorAll('.tm-figure');
+				for (var i = 0; i < figs.length; i++) {
+					ensureBar(figs[i]);
+				}
+			}
+			document.addEventListener('scroll', function (e) {
+				var fig = e.target && e.target.closest ? e.target.closest('.tm-figure') : null;
+				if (fig) {
+					showBar(fig, fig.querySelector('pre.tm-code'));
+				}
+			}, true);
+			document.addEventListener('mouseover', function (e) {
+				var fig = e.target && e.target.closest ? e.target.closest('.tm-figure') : null;
+				if (!fig) {
+					return;
+				}
+				/* only pulse when entering the block (relatedTarget outside it),
+				   so moving over children doesn't keep resetting the fade */
+				var rel = e.relatedTarget;
+				if (rel && rel.closest && rel.closest('.tm-figure') === fig) {
+					return;
+				}
+				var pre = fig.querySelector('pre.tm-code');
+				if (canScroll(pre)) {
+					showBar(fig, pre);
+				}
+			}, true);
+			/* refresh after pane fits (zen toggle / resize / SPA swap): a block
+			   that stopped overflowing must drop its bar immediately (a zen
+			   spread fits, so no bar) */
+			window.tokiwaRefreshCodeScrollbars = function () {
+				var figs = document.querySelectorAll('.tm-figure');
+				for (var i = 0; i < figs.length; i++) {
+					var fig = figs[i];
+					var pre = fig.querySelector('pre.tm-code');
+					if (canScroll(pre)) {
+						ensureBar(fig);
+					} else if (fig._scrollBar) {
+						clearTimeout(fig._scrollFade);
+						fig._scrollBar.classList.remove('is-visible');
+					}
+				}
+			};
+			buildAll();
+		})();
+		/* The pane-fit entry: tables (Table Fitting / Table Spread) and code
+		   blocks (zen code spread) are all sized to the pane. One entry, so
+		   boot / SPA swap / resize / zen toggle always keep both in sync, and
+		   it ends by refreshing the code scroll indicators. */
+		function fitContent() {
+			fitTables();
+			fitCodeBlocks();
+			if (window.tokiwaRefreshCodeScrollbars) {
+				window.tokiwaRefreshCodeScrollbars();
+			}
+		}
 		/* exposed for the boot / SPA-swap call sites (separate IIFEs) */
-		window.tokiwaFitTables = fitTables;
+		window.tokiwaFitContent = fitContent;
 		var zenAnimTimer = null;
 		window.tokiwaToggleZen = function () {
 			var rail = document.querySelector('[data-home-shell] > [data-home-rail]');
@@ -2601,7 +2806,7 @@
 			   never leave the animation state machine wedged (zen-anim
 			   removed below regardless). */
 			try {
-				fitTables();
+				fitContent();
 			} catch (err) {}
 			clearTimeout(zenAnimTimer);
 			zenAnimTimer = setTimeout(function () {
@@ -2619,12 +2824,12 @@
 		}
 		window.addEventListener('resize', function () {
 			if (!zenActive) {
-				fitTables(); /* pane width changed in normal mode */
+				fitContent(); /* pane width changed in normal mode */
 				return;
 			}
 			if (!zenMedia.matches) {
 				setZen(false); /* left desktop → exit zen */
-				fitTables(); /* wide tables must compress again */
+				fitContent(); /* wide tables + code blocks must compress again */
 				return;
 			}
 			measureZenShift();
@@ -3033,7 +3238,14 @@
 			taxonomyCards.boot();
 		}
 		articleLists.boot(); /* size ol indents by digit width (articles) */
-		window.tokiwaFitTables(); /* compress any table wider than the pane (pre-paint) */
+		window.tokiwaFitContent(); /* fit tables + code blocks to the pane (pre-paint) */
+		/* Re-fit on load: tm-highlight (defer) tokenizes the code AFTER this
+		   synchronous boot, adding the gutter width, so the code-spread cache
+		   is refreshed once the honest post-tokenization widths are known
+		   (see DESIGN.md §12). */
+		window.addEventListener('load', function () {
+			window.tokiwaFitContent();
+		});
 		/* h on a leaf restores the page it came from: if we just returned to a
 		   list / card page, put the cursor back where it was */
 		if (window.tokiwaApplyReturnRestore) {

@@ -711,18 +711,39 @@ stroke is the block's teal border (kept from §9) sharpened by a 0-blur ring.
   the corners are sharpened *without* touching it by a 0-blur hairline ring
   `box-shadow:0 0 0 1px rgba(15,23,42,.05)` that follows the same 90° corners
   exactly — each corner point is drawn twice and reads as a crisp cut.
+- **Auto-hiding scroll indicator (normal-mode fallback)** — a code block
+  whose content exceeds the pane stays pinned to the pane (the knife-edge is
+  never broken in normal mode) and scrolls internally. The NATIVE scrollbar
+  is hidden (`scrollbar-width:none` + `::-webkit-scrollbar{display:none}`) —
+  a custom-styled `::-webkit-scrollbar` would draw a classic, always-visible
+  bar that reserves ~8px of layout and disables Chromium's `overflow:overlay`
+  auto-hide — and a themed bar (`.tm-scrollbar`, built by `site-scripts`)
+  replaces it: square, divider teal (`--eucalyptus-300`), **8px visible in a
+  12px grabbable hit area**, shown on scroll / hover, faded out after ~1.2s
+  idle, thumb sized by the pre's scroll position. It is **draggable while
+  shown** (`pointer-events:auto` only then — drag the thumb to scroll, press
+  the track to jump; hidden, it is `pointer-events:none` so it never blocks
+  the code). The block also scrolls by wheel / touch / keyboard. This is the
+  *designed* fallback — zen removes it entirely by spreading the block (§12).
 - **Rainbow brackets** — matched `() [] {} <>` get a hue by nesting depth
-  (VS Code's bracket-pair-colorizer). Six palette tokens `--br0..--br5`
-  (§9, `tokens.css`) are cycled by a stack that spans the whole block:
+  (VS Code's bracket-pair-colorizer). Six bracket slots `--br0..--br5`
+  (§9, `tokens.css`) alias six named syntax tokens
+  `--syntax-{purple,pink,blue,green,magenta,cyan}` — the single source, so
+  the palette reads as named tokens and is retinted in one place — and are
+  cycled by a stack that spans the whole block:
   an opener's colour = depth before push, a closer reuses its opener's index
   so the pair always matches. `tm-highlight` wraps each bracket char in
   `<span class="tm-br{n}">` (a child of the token span, so its own colour
   wins) and **skips brackets inside strings/comments** — detected from the
   token scopes — so a `'{'` in a comment or string neither colours nor throws
-  off the depth. Palette: five of the six hues are **exact night-owl-light
-  theme colours** (red `#d3423e`, teal `#0c969b`, blue `#4876d6`, purple
-  `#994cc3`, magenta `#aa0982`) with one complementary orange `#c2651f`
-  between red and teal — then cycles.
+  off the depth. Palette: **two families alternate** so every nested level
+  sits in the opposite family from its parent — even depths take the
+  purple/blue/magenta family, odd depths the pink/green/cyan family, opening
+  with the purple/blue family at depth 0. Two slots reuse existing tokens
+  (`--syntax-green` = `--teal-dark`, `--syntax-pink` =
+  `--medium-red-violet-400`); the rest are the theme's established cool hues
+  (`#5D3FD3` violet, `#4876d6` blue, `#aa0982` magenta, `#0c969b` cyan) —
+  then cycles.
 - **Angle brackets** — `<`/`>` double as comparison & shift operators, so
   they need extra care. A bracket-looking `<>` is coloured only when either
   (a) the grammar marks it `punctuation.section.angle-brackets.*` (template
@@ -796,7 +817,7 @@ leader, so a third key inside the 1.2 s leader window is a no-op).
   a width that fits the pane, and **flattens** it: every table shows its
   content on as few lines as the space allows — the only difference between
   the two forms is the width cap. Implemented in `site-scripts.html`
-  (`fitTables`, exposed as `window.tokiwaFitTables`) + `.tbl-fit` +
+  (`fitTables`, exposed as `window.tokiwaFitContent`) + `.tbl-fit` +
   `.tbl-oneline` + `.tbl-flat` in `baseof.html`. *The algorithm* — for each
   table, measure three widths with the table pinned to `width:1px`
   (a `width:auto` table stretches to fill the pane, so it would report the
@@ -845,6 +866,30 @@ leader, so a third key inside the 1.2 s leader window is a no-op).
   - the centring works because in zen the pane is already shifted so its
     centre sits on the viewport centre; a spread table and a normal table
     both resolve `left:50%` against the same pane centre.
+- **Code-block spread (zen)** — a code block is treated exactly like a
+  table: its natural width (measured as the pre's border-box at
+  `width:max-content`, cached per block by `codeNaturalWidth` in
+  `site-scripts.html`) is compared to the pane. If
+  it fits, the block stays at the pane width in every mode — never wider
+  than main, so the normal-mode knife-edge is untouched. If it overflows,
+  zen spreads it toward BOTH sides: `width = min(natural, --tbl-spread-max)`,
+  centred by the same `left:50% + translateX(-50%)` rule (`html.zen
+  .c-rich-text .tm-figure`), so a long line is fully visible with NO
+  scrollbar. The width animates on the same `html.zen-anim` gate as the
+  table width (`.65s cubic-bezier(.4,0,.2,1)`), so the widening starts with
+  the pane slide and reverses on exit. Normal mode is unchanged: the block
+  is pinned to the pane and a long line scrolls inside the themed
+  auto-hiding indicator (§11).
+  *Why max-content, not scrollWidth* — the `.tm-line` flex rows let
+  line-code shrink (`min-width:0`), so the pre's `scrollWidth` under-reports
+  the widest line's real width (it came up short by the gutter margin and
+  left a thin scrollbar in zen). `width:max-content` + `getBoundingClientRect`
+  is the honest measure. The cache is re-measured once tm-highlight (defer)
+  tokenizes the code after the synchronous boot (detected by the `.tm-line`
+  gutter appearing, so the raw gutter-less width is not reused), plus a
+  re-fit on `window.load`. Both tables and code share one pane-fit entry —
+  `window.tokiwaFitContent` (`fitTables` + `fitCodeBlocks`) — so boot / SPA
+  swap / resize / zen toggle keep them in sync.
 - **Triggers** — `zz` (second `z` press, repeats ignored); the same
   transition replays in reverse on exit. Independent of the vim engine, so
   it works in the article, the posts list and every taxonomy page.
