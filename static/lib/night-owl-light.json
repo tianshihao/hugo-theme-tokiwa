@@ -433,7 +433,7 @@
       "name": "Function name",
       "scope": "entity.name.function",
       "settings": {
-        "foreground": "#994cc3",
+        "foreground": "#4EAB90",
         "fontStyle": "italic"
       }
     },
@@ -786,7 +786,7 @@
         "entity.name.function"
       ],
       "settings": {
-        "foreground": "#4876d6",
+        "foreground": "#4EAB90",
         "fontStyle": "italic"
       }
     },
@@ -848,7 +848,7 @@
       "name": "Support Function",
       "scope": "support.function",
       "settings": {
-        "foreground": "#4876d6"
+        "foreground": "#4EAB90"
       }
     },
     {
@@ -890,7 +890,7 @@
       "name": "Variable Function",
       "scope": "variable.function",
       "settings": {
-        "foreground": "#4876d6"
+        "foreground": "#4EAB90"
       }
     },
     {

@@ -672,6 +672,17 @@ The colors *inside* code blocks (keywords, strings, numbers, comments…) are
   (most specific scope first, longest rule wins, later identical rule wins).
 - Code blocks are emitted raw by `layouts/_default/_markup/render-codeblock.html`
   (`<pre class="tm-code" data-lang>`) and coloured by the engine at runtime.
+- **Deepening knob** — the palette reads pale on the light `--code-bg`, so
+  `code-theme.html` applies `filter: brightness(.9) saturate(1.2)` to
+  `pre.tm-code code`: it deepens every token colour (and the gutter numbers)
+  at render time, leaving the block background, badges and page text
+  untouched. One value to tune: raise brightness / lower saturate for deeper,
+  lower brightness for flatter.
+- **Function hue** — callable names (`entity.name.function`,
+  `support.function`, `variable.function`) use the light-green tier
+  (`#4EAB90`, eucalyptus-400): clearly distinct from the entity teal
+  (`#22827A`) inside code, and harmonious with the deep-green headings
+  (`#01513A`) when inline code sits inside a heading.
 
 ## 11. Code block chrome — gutter, badges & square corners
 

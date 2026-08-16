@@ -79,6 +79,14 @@
 		scrollbar-width: none; /* Firefox: hide the native bar */
 	}
 	.c-rich-text pre.tm-code code { display: block; }
+	/* All code colours are slightly DEEPENED — the syntax palette reads pale
+	   on the light --code-bg (see DESIGN.md §10). One tunable knob: raise
+	   brightness / lower saturate for deeper, lower brightness for flatter.
+	   Filtering the <code> container (not the pre) darkens only the token
+	   text — the code-block background, badges and page text stay untouched. */
+	.c-rich-text pre.tm-code code {
+		filter: brightness(0.8) saturate(2.0);
+	}
 	.c-rich-text pre.tm-code::-webkit-scrollbar { display: none; } /* Chromium: hide the native bar */
 	.c-rich-text pre.tm-code::-webkit-scrollbar-track,
 	.c-rich-text pre.tm-code::-webkit-scrollbar-thumb { display: none; }

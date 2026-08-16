@@ -79,6 +79,18 @@
 			color: var(--teal-faint);
 		}
 
+		/* the compiled app.css sets a:focus/a:hover to --teal-hover (green), so
+		   the magenta tags would turn green on hover; keep them magenta — deepen
+		   to --medium-red-violet-600 (the pair's normal tone). The .c-rich-text
+		   variant (specificity (0,3,1)) is needed on article pages, where
+		   .c-rich-text a:hover ((0,2,1)) would otherwise win. */
+		.post-taxonomy-tag:hover,
+		.post-taxonomy-tag:focus,
+		.c-rich-text a.post-taxonomy-tag:hover,
+		.c-rich-text a.post-taxonomy-tag:focus {
+			color: var(--medium-red-violet-600);
+		}
+
 		:root {
 			--aside-gap: 34px;
 		}
